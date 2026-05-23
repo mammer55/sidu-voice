@@ -235,6 +235,193 @@ html, body {
   border-color: var(--teal);
 }
 
+/* ── Letter badge ── */
+.letter-badge {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: #fff8e1;
+  border: 2px solid #f0b429;
+  border-radius: 40px;
+  padding: 14px 22px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #7a4f00;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(240,180,41,0.35);
+  z-index: 100;
+  animation: letter-pulse 2.2s ease-in-out infinite;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes letter-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 20px rgba(240,180,41,0.35); }
+  50%       { transform: scale(1.04); box-shadow: 0 6px 28px rgba(240,180,41,0.55); }
+}
+
+/* ── Letter modal ── */
+.letter-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+}
+
+.letter-inner {
+  background: #fffef5;
+  border: 2px solid #e6d59a;
+  border-radius: 20px;
+  padding: 36px 32px;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.22);
+  text-align: right;
+}
+
+.letter-from {
+  font-size: 17px;
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.letter-date {
+  font-size: 16px;
+  color: #b0956a;
+  margin-bottom: 28px;
+  font-style: italic;
+}
+
+.letter-text {
+  font-size: 24px;
+  line-height: 1.9;
+  color: var(--text);
+  white-space: pre-wrap;
+  margin-bottom: 32px;
+}
+
+.letter-close {
+  width: 100%;
+  padding: 18px;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.letter-close:active { transform: scale(0.97); }
+
+/* ── Contact widget ── */
+.contact-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 20px;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.contact-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 40px;
+  padding: 16px 26px;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(26,122,110,0.4);
+  transition: background 0.2s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+.contact-toggle:active { transform: scale(0.96); }
+
+.contact-panel {
+  background: var(--surface);
+  border: 2px solid #d8d4ce;
+  border-radius: 20px;
+  padding: 24px;
+  width: min(360px, calc(100vw - 40px));
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  text-align: right;
+}
+
+.contact-header {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--teal-dark);
+  margin-bottom: 10px;
+}
+
+.contact-desc {
+  font-size: 18px;
+  color: var(--muted);
+  line-height: 1.65;
+  margin-bottom: 16px;
+}
+
+.contact-msg {
+  width: 100%;
+  min-height: 110px;
+  padding: 16px;
+  font-size: 20px;
+  font-family: var(--font);
+  direction: rtl;
+  border: 2px solid #d8d4ce;
+  border-radius: 14px;
+  resize: vertical;
+  color: var(--text);
+  outline: none;
+  margin-bottom: 12px;
+  -webkit-appearance: none;
+}
+.contact-msg:focus { border-color: var(--teal); }
+
+.contact-send {
+  width: 100%;
+  padding: 16px;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.contact-send:active { transform: scale(0.98); }
+.contact-send:disabled { background: #aaa; cursor: not-allowed; transform: none; }
+
+.contact-success {
+  margin-top: 14px;
+  font-size: 20px;
+  color: var(--teal-dark);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.5;
+}
+
 /* ── Responsive tweaks ── */
 @media (max-width: 400px) {
   .btn-main { width: 140px; height: 140px; }

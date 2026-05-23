@@ -1,7 +1,7 @@
 'use strict';
 
-const GROQ_API_KEY = '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';
-const GROQ_URL     = 'https://api.groq.com/openai/v1/audio/transcriptions';
+// GROQ_API_KEY is loaded from config.js (gitignored)
+const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
 let mediaRecorder = null;
 let audioChunks   = [];
@@ -193,3 +193,90 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
 }
+
+// ── Contact widget (grandpa → Mustafa) ───────────────────────────────────────
+// Credentials live in config.js (gitignored). See config.example.js for the template.
+
+let contactOpen = false;
+
+function toggleContact() {
+  contactOpen = !contactOpen;
+  document.getElementById('contact-panel').hidden = !contactOpen;
+}
+
+async function sendMessage() {
+  const msgEl   = document.getElementById('contact-msg');
+  const sendBtn = document.getElementById('contact-send');
+  const text    = msgEl.value.trim();
+  if (!text) return;
+
+  sendBtn.disabled    = true;
+  sendBtn.textContent = 'جارٍ الإرسال…';
+
+  try {
+    await Email.send({
+      Host:     SMTP_HOST,
+      Username: SMTP_USER,
+      Password: SMTP_PASS,
+      To:       RECIPIENT_EMAIL,
+      From:     SMTP_USER,
+      Subject:  'رسالة من الجد 📩',
+      Body:     `رسالة جديدة من جدّك:\n\n${text}\n\nالوقت: ${new Date().toLocaleString('ar-SA')}`,
+    });
+
+    msgEl.value = '';
+    document.getElementById('contact-success').hidden = false;
+    setTimeout(() => {
+      document.getElementById('contact-success').hidden = true;
+      contactOpen = false;
+      document.getElementById('contact-panel').hidden = true;
+    }, 3500);
+  } catch (err) {
+    console.error('Send error:', err);
+    // Fallback — open mail client pre-filled
+    window.location.href =
+      `mailto:${RECIPIENT_EMAIL}?subject=${encodeURIComponent('رسالة من الجد')}&body=${encodeURIComponent(text)}`;
+  } finally {
+    sendBtn.disabled    = false;
+    sendBtn.textContent = 'إرسال';
+  }
+}
+
+// ── Letter from Mustafa (Mustafa → grandpa via URL ?letter=...) ───────────────
+//
+// HOW TO SEND GRANDPA A LETTER:
+//   Share this URL with him (e.g. via WhatsApp):
+//   https://yoursite.com/?letter=يا جدي الحبيب، كيف حالك...
+//   He opens it → sees "رسالة جديدة من مصطفى" → taps → reads your letter.
+//
+function initLetter() {
+  const params    = new URLSearchParams(window.location.search);
+  const newLetter = params.get('letter');
+
+  if (newLetter) {
+    const entry = { text: newLetter, date: new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' }) };
+    localStorage.setItem('mustafa_letter', JSON.stringify(entry));
+    history.replaceState(null, '', window.location.pathname);
+  }
+
+  if (localStorage.getItem('mustafa_letter')) {
+    document.getElementById('letter-badge').hidden = false;
+  }
+}
+
+function openLetter() {
+  const stored = localStorage.getItem('mustafa_letter');
+  if (!stored) return;
+  const { text, date } = JSON.parse(stored);
+  document.getElementById('letter-date').textContent = date;
+  document.getElementById('letter-text').textContent = text;
+  document.getElementById('letter-panel').hidden = false;
+}
+
+function closeLetter() {
+  document.getElementById('letter-panel').hidden = true;
+  localStorage.removeItem('mustafa_letter');
+  document.getElementById('letter-badge').hidden = true;
+}
+
+initLetter();
