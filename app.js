@@ -1,6 +1,6 @@
 'use strict';
 
-const GROQ_API_KEY    = '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';
+const GROQ_API_KEY    = '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';
 const GROQ_URL        = 'https://api.groq.com/openai/v1/audio/transcriptions';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynRnOepcTh1LnJATtqS1Jb-3gSitCUXBNrVrtwUoCrh03KXxIf36MULAI0lOAhjvKa/exec';
 
