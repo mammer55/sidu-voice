@@ -359,6 +359,20 @@ html, body {
 }
 .letter-close:active { transform: scale(0.97); }
 
+/* ── Rate-limit banner (continuous mode) ── */
+.rate-banner {
+  margin-top: 12px;
+  padding: 16px 20px;
+  background: #fff7e6;
+  border: 2px solid #e6b96a;
+  border-radius: 14px;
+  color: #6b4a10;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+}
+.rate-banner[hidden] { display: none; }
+
 /* ── Overwrite confirm modal ── */
 .confirm-overlay {
   position: fixed;

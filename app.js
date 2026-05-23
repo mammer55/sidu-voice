@@ -21,7 +21,6 @@ const btnRetry        = document.getElementById('btn-retry');
 const btnCopy         = document.getElementById('btn-copy');
 const copyLabel       = document.getElementById('copy-label');
 const transcript      = document.getElementById('transcript');
-const liveTranscript  = document.getElementById('live-transcript');
 const errorBox        = document.getElementById('error-box');
 const errorText       = document.getElementById('error-text');
 
@@ -33,10 +32,6 @@ function setMode(mode) {
 
   document.getElementById('mode-accurate').classList.toggle('mode-pill--active', mode === 'accurate');
   document.getElementById('mode-live').classList.toggle('mode-pill--active', mode === 'live');
-
-  // Textarea is shown in both modes now — live mode writes into it directly.
-  transcript.hidden     = false;
-  liveTranscript.hidden = true;
 
   hideError();
   hideRetry();
@@ -208,100 +203,201 @@ function manualRetry() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// LIVE MODE — Web Speech API
+// CONTINUOUS MODE (مستمر) — Chunked Groq Whisper
 // ══════════════════════════════════════════════════════════════════════════════
+//
+// Records continuously; every CHUNK_MS the active MediaRecorder is rotated and
+// the produced blob is queued for transcription. Whisper requests are throttled
+// to stay under Groq's 20 req/min limit (we pause at 18). New chunks keep
+// being recorded while sending is paused — they just stack up in the queue and
+// drain automatically once a slot opens.
 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition     = null;
-let liveFinalized   = ''; // accumulated final text
+const CHUNK_MS         = 5000;
+const RATE_WINDOW_MS   = 60000;
+const RATE_MAX         = 18;   // safe buffer below Groq's 20/min
+const COOLDOWN_429_MS  = 30000;
+
+let continuousStream  = null;
+let chunkRecorder     = null;
+let chunkTimer        = null;
+let pendingChunks     = [];
+let requestTimestamps = [];
+let cooldownUntil     = 0;
+let pumping           = false;
+let bannerTicker      = null;
 
 function toggleLive() {
   if (appState === 'idle') {
-    startLive();
+    startContinuous();
   } else if (appState === 'recording') {
-    stopLive();
+    stopContinuous();
   }
 }
 
-async function startLive() {
-  if (!SpeechRecognition) {
-    showError('المتصفح لا يدعم الوضع الفوري. استخدم الوضع الدقيق ✅ بدلاً منه.');
-    return;
-  }
+async function startContinuous() {
+  hideError();
+  hideRetry();
 
-  // Request mic permission first — avoids immediate 'network' error in Chrome
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach(t => t.stop());
+    continuousStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch {
     showError('لا يمكن الوصول إلى الميكروفون. يرجى السماح بذلك من الإعدادات.');
     return;
   }
 
-  hideError();
-
-  // Append to existing text rather than overwrite. Start liveFinalized from
-  // whatever is already in the textarea (with a trailing space separator).
-  const existing = transcript.value;
-  liveFinalized = existing && !/\s$/.test(existing) ? existing + ' ' : existing;
-
-  recognition = new SpeechRecognition();
-  recognition.lang            = 'ar';
-  recognition.continuous      = true;
-  recognition.interimResults  = true;
-
-  recognition.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) {
-        liveFinalized += t;
-      } else {
-        interim += t;
-      }
-    }
-    transcript.value = liveFinalized + interim;
-    transcript.dispatchEvent(new Event('input'));
-  };
-
-  recognition.onerror = (e) => {
-    console.error('SpeechRecognition error:', e.error);
-    if (e.error === 'not-allowed' || e.error === 'audio-capture') {
-      showError('لا يمكن الوصول إلى الميكروفون. يرجى السماح بذلك من الإعدادات.');
-      setState('idle');
-    } else if (e.error === 'network' || e.error === 'service-not-allowed') {
-      showError('الوضع الفوري غير متاح على هذا الجهاز. استخدم الوضع الدقيق ✅ بدلاً منه.');
-      setState('idle');
-    } else if (e.error !== 'no-speech') {
-      showError('حدث خطأ: ' + e.error);
-      setState('idle');
-    }
-  };
-
-  recognition.onend = () => {
-    if (appState === 'recording') setState('idle');
-  };
-
-  recognition.start();
   setState('recording');
+  startNewChunk();
 }
 
-function stopLive() {
-  if (recognition) {
-    recognition.stop();
-    recognition = null;
+function startNewChunk() {
+  if (!continuousStream || appState !== 'recording') return;
+
+  const mimeType = bestMimeType();
+  const chunks   = [];
+  const rec      = new MediaRecorder(continuousStream, mimeType ? { mimeType } : {});
+
+  rec.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) chunks.push(e.data);
+  };
+  rec.onstop = () => {
+    const type = rec.mimeType || 'audio/webm';
+    const blob = new Blob(chunks, { type });
+    if (blob.size > 0) enqueueChunk(blob);
+  };
+
+  rec.start();
+  chunkRecorder = rec;
+
+  chunkTimer = setTimeout(() => {
+    if (rec.state !== 'inactive') rec.stop();
+    startNewChunk();
+  }, CHUNK_MS);
+}
+
+function stopContinuous() {
+  if (chunkTimer) { clearTimeout(chunkTimer); chunkTimer = null; }
+  if (chunkRecorder && chunkRecorder.state !== 'inactive') {
+    chunkRecorder.stop(); // final chunk → queue
   }
-  // flush any trailing interim as final
-  transcript.value = liveFinalized;
-  transcript.dispatchEvent(new Event('input'));
+  if (continuousStream) {
+    continuousStream.getTracks().forEach(t => t.stop());
+    continuousStream = null;
+  }
   setState('idle');
 }
 
-function escHtml(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+// ── Chunk queue + rate limiting ──────────────────────────────────────────────
+function pruneRequests() {
+  const cutoff = Date.now() - RATE_WINDOW_MS;
+  requestTimestamps = requestTimestamps.filter(t => t > cutoff);
+}
+
+function waitSeconds() {
+  const now = Date.now();
+  let wait = 0;
+  if (now < cooldownUntil) wait = Math.max(wait, cooldownUntil - now);
+  pruneRequests();
+  if (requestTimestamps.length >= RATE_MAX) {
+    wait = Math.max(wait, requestTimestamps[0] + RATE_WINDOW_MS - now);
+  }
+  return Math.ceil(wait / 1000);
+}
+
+function canSendNow() {
+  return waitSeconds() === 0;
+}
+
+function enqueueChunk(blob) {
+  pendingChunks.push(blob);
+  pumpQueue();
+}
+
+async function pumpQueue() {
+  if (pumping) return;
+  pumping = true;
+
+  while (pendingChunks.length > 0) {
+    if (!canSendNow()) {
+      showRateBanner();
+      pumping = false;
+      return;
+    }
+    const blob = pendingChunks.shift();
+    requestTimestamps.push(Date.now());
+    try {
+      const text = await transcribeChunk(blob);
+      if (text) appendChunkText(text);
+    } catch (err) {
+      if (err && err.is429) {
+        cooldownUntil = Date.now() + COOLDOWN_429_MS;
+        pendingChunks.unshift(blob); // retry this same chunk later
+        showRateBanner();
+        pumping = false;
+        return;
+      }
+      console.error('Chunk failed:', err);
+    }
+  }
+
+  hideRateBanner();
+  pumping = false;
+}
+
+async function transcribeChunk(blob) {
+  const ext      = extFromMime(blob.type);
+  const formData = new FormData();
+  formData.append('file',     blob, `audio.${ext}`);
+  formData.append('model',    'whisper-large-v3-turbo');
+  formData.append('language', 'ar');
+
+  const res = await fetch(GROQ_URL, {
+    method:  'POST',
+    headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` },
+    body:    formData,
+  });
+
+  if (res.status === 429) {
+    const e = new Error('rate-limited');
+    e.is429 = true;
+    throw e;
+  }
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return (data.text || '').trim();
+}
+
+function appendChunkText(text) {
+  text = text.trim();
+  if (!text) return;
+  const cur = transcript.value;
+  const sep = (!cur || /\s$/.test(cur)) ? '' : ' ';
+  transcript.value = cur + sep + text;
+  transcript.dispatchEvent(new Event('input'));
+}
+
+// ── Rate-limit banner ────────────────────────────────────────────────────────
+function showRateBanner() {
+  const banner = document.getElementById('rate-banner');
+  const count  = document.getElementById('rate-countdown');
+  banner.hidden = false;
+  count.textContent = waitSeconds();
+  if (!bannerTicker) {
+    bannerTicker = setInterval(() => {
+      const s = waitSeconds();
+      count.textContent = s;
+      if (s === 0) {
+        hideRateBanner();
+        pumpQueue();
+      }
+    }, 500);
+  }
+}
+
+function hideRateBanner() {
+  document.getElementById('rate-banner').hidden = true;
+  if (bannerTicker) { clearInterval(bannerTicker); bannerTicker = null; }
 }
 
 // ── Copy (works for both modes) ───────────────────────────────────────────────

@@ -74,7 +74,7 @@
         دقيق ✅
       </button>
       <button id="mode-live" class="mode-pill" onclick="setMode('live')">
-        فوري 🎙
+        مستمر 🎙
       </button>
     </div>
 
@@ -116,8 +116,10 @@
         placeholder="سيظهر النص هنا بعد التسجيل…"
         spellcheck="false"
       ></textarea>
-      <!-- Live mode display (interim + final) -->
-      <div id="live-transcript" class="transcript live-transcript" dir="rtl" hidden></div>
+      <!-- Rate-limit pause banner (continuous mode) -->
+      <div id="rate-banner" class="rate-banner" hidden dir="rtl">
+        يرجى الانتظار لحظة قبل المتابعة... (<span id="rate-countdown">0</span> ث)
+      </div>
     </div>
 
     <!-- Copy button -->
