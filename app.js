@@ -1,5 +1,7 @@
 'use strict';
 
+const GROQ_API_KEY    = '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';
+const GROQ_URL        = 'https://api.groq.com/openai/v1/audio/transcriptions';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynRnOepcTh1LnJATtqS1Jb-3gSitCUXBNrVrtwUoCrh03KXxIf36MULAI0lOAhjvKa/exec';
 
 let mediaRecorder = null;
@@ -87,14 +89,6 @@ function stopRecording() {
 }
 
 // ── Transcription ─────────────────────────────────────────────────────────────
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
 
 async function transcribe(isRetry) {
   setState('processing');
@@ -102,20 +96,21 @@ async function transcribe(isRetry) {
   hideRetry();
 
   try {
-    const ext    = extFromMime(audioBlob.type);
-    const audio  = await blobToBase64(audioBlob);
+    const ext      = extFromMime(audioBlob.type);
+    const formData = new FormData();
+    formData.append('file',     audioBlob, `audio.${ext}`);
+    formData.append('model',    'whisper-large-v3-turbo');
+    formData.append('language', 'ar');
 
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body:   JSON.stringify({ type: 'transcribe', audio, mimeType: audioBlob.type, ext }),
+    const res = await fetch(GROQ_URL, {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` },
+      body:    formData,
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const raw = await res.text();
-    let data;
-    try { data = JSON.parse(raw); }
-    catch { throw new Error(`Apps Script returned: ${raw}`); }
+    const data = await res.json();
     transcript.value = (data.text || '').trim();
     setState('idle');
 
@@ -218,11 +213,12 @@ async function sendMessage() {
 
   let succeeded = false;
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
+    // no-cors: browser can't read the response but the request reaches Apps Script fine
+    await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
-      body: JSON.stringify({ type: 'email', message: text }),
+      mode:   'no-cors',
+      body:   JSON.stringify({ type: 'email', message: text }),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     succeeded = true;
   } catch (err) {
     console.error('Send error:', err);
