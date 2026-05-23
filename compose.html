@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Send Grandpa a Letter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, 'Segoe UI', sans-serif;
+      background: #f0faf9;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 560px;
+      width: 100%;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      font-size: 26px;
+      color: #145f55;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: #888;
+      margin-bottom: 28px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      padding: 18px;
+      font-size: 18px;
+      font-family: inherit;
+      border: 2px solid #d0e8e5;
+      border-radius: 14px;
+      resize: vertical;
+      outline: none;
+      color: #1c1c1e;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    textarea:focus { border-color: #1a7a6e; }
+
+    .btn-send {
+      width: 100%;
+      padding: 18px;
+      background: #1a7a6e;
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-send:hover  { background: #145f55; }
+    .btn-send:active { transform: scale(0.98); }
+
+    .result {
+      display: none;
+      margin-top: 20px;
+      background: #e6f4f2;
+      border: 2px solid #1a7a6e;
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .result-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: #145f55;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .result-url {
+      font-size: 13px;
+      color: #444;
+      word-break: break-all;
+      background: #fff;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border: 1px solid #c0ddd9;
+    }
+
+    .result-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-copy, .btn-open {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-copy { background: #d0e8e5; color: #145f55; }
+    .btn-copy:hover { background: #b8dbd7; }
+    .btn-copy.copied { background: #1a7a6e; color: #fff; }
+
+    .btn-open { background: #1a7a6e; color: #fff; }
+    .btn-open:hover { background: #145f55; }
+
+    .note {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #888;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>✉️ Send Grandpa a Letter</h1>
+    <p class="subtitle">Type your message below — it'll open on his app automatically.</p>
+
+    <textarea id="msg" placeholder="Write your message here…"></textarea>
+
+    <button class="btn-send" onclick="sendLetter()">Send to Grandpa →</button>
+
+    <div class="result" id="result">
+      <div class="result-label">✅ Letter link ready — opening now</div>
+      <div class="result-url" id="result-url"></div>
+      <div class="result-actions">
+        <button class="btn-copy" id="btn-copy" onclick="copyLink()">Copy Link</button>
+        <button class="btn-open" onclick="openLink()">Open Again</button>
+      </div>
+    </div>
+
+    <p class="note">The link opens his app with your message — share it via WhatsApp if he needs it again.</p>
+  </div>
+
+  <script>
+    const BASE_URL = 'https://mammer55.github.io/sidu-voice/';
+    let currentUrl = '';
+
+    function sendLetter() {
+      const msg = document.getElementById('msg').value.trim();
+      if (!msg) { document.getElementById('msg').focus(); return; }
+
+      currentUrl = BASE_URL + '?letter=' + encodeURIComponent(msg);
+
+      document.getElementById('result-url').textContent = currentUrl;
+      document.getElementById('result').style.display = 'block';
+
+      // Open it immediately
+      window.open(currentUrl, '_blank');
+    }
+
+    function copyLink() {
+      navigator.clipboard.writeText(currentUrl).then(() => {
+        const btn = document.getElementById('btn-copy');
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Copy Link';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    function openLink() {
+      window.open(currentUrl, '_blank');
+    }
+
+    // Submit on Cmd+Enter
+    document.getElementById('msg').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sendLetter();
+    });
+  </script>
+
+</body>
+</html>
