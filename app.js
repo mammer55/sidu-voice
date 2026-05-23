@@ -180,9 +180,18 @@ function toggleLive() {
   }
 }
 
-function startLive() {
+async function startLive() {
   if (!SpeechRecognition) {
     showError('يرجى استخدام Chrome لهذه الميزة');
+    return;
+  }
+
+  // Request mic permission first — avoids immediate 'network' error in Chrome
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+  } catch {
+    showError('لا يمكن الوصول إلى الميكروفون. يرجى السماح بذلك من الإعدادات.');
     return;
   }
 
@@ -205,23 +214,26 @@ function startLive() {
         interim += t;
       }
     }
-    // Final text in solid black, interim in lighter grey
     liveTranscript.innerHTML =
       '<span class="live-final">'   + escHtml(liveFinalized) + '</span>' +
       '<span class="live-interim">' + escHtml(interim)       + '</span>';
   };
 
   recognition.onerror = (e) => {
-    if (e.error === 'not-allowed') {
+    console.error('SpeechRecognition error:', e.error);
+    if (e.error === 'not-allowed' || e.error === 'audio-capture') {
       showError('لا يمكن الوصول إلى الميكروفون. يرجى السماح بذلك من الإعدادات.');
+      setState('idle');
+    } else if (e.error === 'network') {
+      showError('تعذّر الاتصال بخدمة التعرف على الصوت. تحقّق من الإنترنت.');
+      setState('idle');
     } else if (e.error !== 'no-speech') {
-      showError('حدث خطأ في التعرف على الصوت.');
+      showError('حدث خطأ: ' + e.error);
+      setState('idle');
     }
-    setState('idle');
   };
 
   recognition.onend = () => {
-    // only snap to idle if we didn't stop it manually
     if (appState === 'recording') setState('idle');
   };
 
