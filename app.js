@@ -95,8 +95,8 @@ function setState(s) {
 
 // ── Button handler — routes to correct mode ───────────────────────────────────
 async function handleRecordBtn() {
-  // If starting a new recording while text exists, confirm first.
-  if (appState === 'idle') {
+  // Confirm before overwriting in accurate mode only. مستمر appends, so no warning.
+  if (appState === 'idle' && currentMode === 'accurate') {
     const ok = await confirmOverwriteIfNeeded();
     if (!ok) return;
   }
