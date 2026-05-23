@@ -79,47 +79,10 @@
     }
 
     .result-label {
-      font-size: 14px;
-      font-weight: 700;
-      color: #145f55;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .result-url {
-      font-size: 13px;
-      color: #444;
-      word-break: break-all;
-      background: #fff;
-      border-radius: 8px;
-      padding: 10px 12px;
-      margin-bottom: 12px;
-      border: 1px solid #c0ddd9;
-    }
-
-    .result-actions {
-      display: flex;
-      gap: 10px;
-    }
-
-    .btn-copy, .btn-open {
-      flex: 1;
-      padding: 12px;
-      border: none;
-      border-radius: 10px;
       font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s;
+      font-weight: 600;
+      color: #145f55;
     }
-
-    .btn-copy { background: #d0e8e5; color: #145f55; }
-    .btn-copy:hover { background: #b8dbd7; }
-    .btn-copy.copied { background: #1a7a6e; color: #fff; }
-
-    .btn-open { background: #1a7a6e; color: #fff; }
-    .btn-open:hover { background: #145f55; }
 
     .btn-clear {
       width: 100%;
@@ -159,7 +122,7 @@
       <div class="result-label" id="result-label"></div>
     </div>
 
-    <p class="note">His app checks for new letters automatically every 30 min — no action needed from him.</p>
+    <p class="note">His app checks for new letters every 2 minutes — no action needed from him.</p>
   </div>
 
   <script>
@@ -181,7 +144,7 @@
 
       btn.textContent = 'Send to Grandpa →';
       btn.disabled = false;
-      showResult('✅ Letter sent! His app will show it within 30 minutes (or 5 sec if ?debug is on).');
+      showResult('✅ Letter sent! His app will show it within 2 minutes.');
       document.getElementById('msg').value = '';
     }
 
