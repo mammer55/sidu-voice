@@ -1,4 +1,4 @@
-const CACHE = 'voice-transcriber-v2';
+const CACHE = 'voice-transcriber-v3';
 const SHELL = [
   './',
   'index.html',

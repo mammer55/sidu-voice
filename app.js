@@ -326,6 +326,10 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
+  // When a new SW takes over, reload so the fresh files are used immediately
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
 }
 
 // ── Contact widget (grandpa → Mustafa) ───────────────────────────────────────
