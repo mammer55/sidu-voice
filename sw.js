@@ -24,11 +24,17 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Cache-first for shell assets; network-only for API calls.
+// Network-first for shell assets; network-only for API calls.
 self.addEventListener('fetch', (e) => {
   if (e.request.url.includes('api.groq.com')) return; // never cache API
 
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request)
+      .then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
