@@ -257,6 +257,8 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+.letter-badge[hidden] { display: none; }
+
 @keyframes letter-pulse {
   0%, 100% { transform: scale(1); box-shadow: 0 4px 20px rgba(240,180,41,0.35); }
   50%       { transform: scale(1.04); box-shadow: 0 6px 28px rgba(240,180,41,0.55); }
