@@ -14,6 +14,19 @@
 </head>
 <body data-state="idle">
 
+  <!-- Overwrite confirmation modal -->
+  <div id="confirm-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-inner">
+      <div class="confirm-text">
+        تحذير: يوجد نص في المربع. هل تريد المتابعة؟ سيتم مسح النص الحالي.
+      </div>
+      <div class="confirm-buttons">
+        <button class="confirm-btn confirm-btn--cancel" onclick="resolveConfirm(false)">تراجع</button>
+        <button class="confirm-btn confirm-btn--proceed" onclick="resolveConfirm(true)">متابعة</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Letter notification badge — hidden until Mustafa sends a letter via URL ?letter=... -->
   <div id="letter-badge" class="letter-badge" hidden onclick="openLetter()">
     <span>📬</span>

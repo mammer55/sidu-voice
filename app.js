@@ -10,6 +10,8 @@ let audioBlob      = null;
 let appState       = 'idle'; // 'idle' | 'recording' | 'processing'
 let currentMode    = 'accurate'; // 'accurate' | 'live'
 
+const LS_TEXT_KEY = 'sidu-voice-text';
+
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const body            = document.body;
 const btnRecord       = document.getElementById('btn-record');
@@ -32,13 +34,48 @@ function setMode(mode) {
   document.getElementById('mode-accurate').classList.toggle('mode-pill--active', mode === 'accurate');
   document.getElementById('mode-live').classList.toggle('mode-pill--active', mode === 'live');
 
-  // swap visible transcript element
-  transcript.hidden     = (mode === 'live');
-  liveTranscript.hidden = (mode === 'accurate');
+  // Textarea is shown in both modes now — live mode writes into it directly.
+  transcript.hidden     = false;
+  liveTranscript.hidden = true;
 
   hideError();
   hideRetry();
   setState('idle');
+}
+
+// ── localStorage autosave ─────────────────────────────────────────────────────
+function loadSavedText() {
+  try {
+    const saved = localStorage.getItem(LS_TEXT_KEY);
+    if (saved) transcript.value = saved;
+  } catch { /* silent */ }
+}
+
+function saveText() {
+  try { localStorage.setItem(LS_TEXT_KEY, transcript.value); } catch { /* silent */ }
+}
+
+transcript.addEventListener('input', saveText);
+loadSavedText();
+
+// ── Overwrite confirmation ────────────────────────────────────────────────────
+let confirmResolver = null;
+
+function confirmOverwriteIfNeeded() {
+  if (!transcript.value.trim()) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    confirmResolver = resolve;
+    document.getElementById('confirm-overlay').hidden = false;
+  });
+}
+
+function resolveConfirm(proceed) {
+  document.getElementById('confirm-overlay').hidden = true;
+  if (confirmResolver) {
+    const r = confirmResolver;
+    confirmResolver = null;
+    r(proceed);
+  }
 }
 
 // ── State machine ─────────────────────────────────────────────────────────────
@@ -62,7 +99,12 @@ function setState(s) {
 }
 
 // ── Button handler — routes to correct mode ───────────────────────────────────
-function handleRecordBtn() {
+async function handleRecordBtn() {
+  // If starting a new recording while text exists, confirm first.
+  if (appState === 'idle') {
+    const ok = await confirmOverwriteIfNeeded();
+    if (!ok) return;
+  }
   if (currentMode === 'accurate') {
     toggleRecording();
   } else {
@@ -145,6 +187,7 @@ async function transcribe(isRetry) {
 
     const data = await res.json();
     transcript.value = (data.text || '').trim();
+    transcript.dispatchEvent(new Event('input'));
     setState('idle');
 
   } catch (err) {
@@ -182,7 +225,7 @@ function toggleLive() {
 
 async function startLive() {
   if (!SpeechRecognition) {
-    showError('يرجى استخدام Chrome لهذه الميزة');
+    showError('المتصفح لا يدعم الوضع الفوري. استخدم الوضع الدقيق ✅ بدلاً منه.');
     return;
   }
 
@@ -196,8 +239,11 @@ async function startLive() {
   }
 
   hideError();
-  liveFinalized = '';
-  liveTranscript.innerHTML = '';
+
+  // Append to existing text rather than overwrite. Start liveFinalized from
+  // whatever is already in the textarea (with a trailing space separator).
+  const existing = transcript.value;
+  liveFinalized = existing && !/\s$/.test(existing) ? existing + ' ' : existing;
 
   recognition = new SpeechRecognition();
   recognition.lang            = 'ar';
@@ -214,9 +260,8 @@ async function startLive() {
         interim += t;
       }
     }
-    liveTranscript.innerHTML =
-      '<span class="live-final">'   + escHtml(liveFinalized) + '</span>' +
-      '<span class="live-interim">' + escHtml(interim)       + '</span>';
+    transcript.value = liveFinalized + interim;
+    transcript.dispatchEvent(new Event('input'));
   };
 
   recognition.onerror = (e) => {
@@ -224,8 +269,8 @@ async function startLive() {
     if (e.error === 'not-allowed' || e.error === 'audio-capture') {
       showError('لا يمكن الوصول إلى الميكروفون. يرجى السماح بذلك من الإعدادات.');
       setState('idle');
-    } else if (e.error === 'network') {
-      showError('تعذّر الاتصال بخدمة التعرف على الصوت. تحقّق من الإنترنت.');
+    } else if (e.error === 'network' || e.error === 'service-not-allowed') {
+      showError('الوضع الفوري غير متاح على هذا الجهاز. استخدم الوضع الدقيق ✅ بدلاً منه.');
       setState('idle');
     } else if (e.error !== 'no-speech') {
       showError('حدث خطأ: ' + e.error);
@@ -246,8 +291,9 @@ function stopLive() {
     recognition.stop();
     recognition = null;
   }
-  // flush any remaining interim as final
-  liveTranscript.innerHTML = '<span class="live-final">' + escHtml(liveFinalized) + '</span>';
+  // flush any trailing interim as final
+  transcript.value = liveFinalized;
+  transcript.dispatchEvent(new Event('input'));
   setState('idle');
 }
 
@@ -260,10 +306,7 @@ function escHtml(str) {
 
 // ── Copy (works for both modes) ───────────────────────────────────────────────
 async function copyTranscript() {
-  const text = currentMode === 'accurate'
-    ? transcript.value.trim()
-    : liveFinalized.trim() || liveTranscript.textContent.trim();
-
+  const text = transcript.value.trim();
   if (!text) return;
 
   try {
