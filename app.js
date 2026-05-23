@@ -108,7 +108,10 @@ async function transcribe(isRetry) {
       body:    formData,
     });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${body}`);
+    }
 
     const data = await res.json();
     transcript.value = (data.text || '').trim();
@@ -120,10 +123,27 @@ async function transcribe(isRetry) {
       setTimeout(() => transcribe(true), 3000);
     } else {
       setState('idle');
-      showError('تعذّر الاتصال بالخادم. تحقّق من الإنترنت وحاول مرة أخرى.');
+      showError('حدث خطأ. اضغط الزر مرة أخرى من فضلك.');
       showRetry();
+      alertMustafa(err);
     }
   }
+}
+
+async function alertMustafa(err) {
+  try {
+    const details = [
+      `Error: ${err.message}`,
+      `Time: ${new Date().toISOString()}`,
+      `UserAgent: ${navigator.userAgent}`,
+      `Key prefix: ${GROQ_API_KEY.slice(0, 8)}...`,
+    ].join('\n');
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode:   'no-cors',
+      body:   JSON.stringify({ type: 'email', message: `🚨 Transcription failed on grandpa's device:\n\n${details}` }),
+    });
+  } catch { /* silent — don't cascade errors */ }
 }
 
 function manualRetry() {
@@ -244,10 +264,7 @@ async function sendMessage() {
   }
 }
 
-// ── Letter from Mustafa — server-side polling ─────────────────────────────────
-// Add ?debug to the URL for 5-second polling (normal = 30 minutes)
-const DEBUG_MODE     = new URLSearchParams(window.location.search).has('debug');
-const POLL_INTERVAL  = DEBUG_MODE ? 5_000 : 30 * 60 * 1000;
+// ── Letter from Mustafa — server-side polling (every 2 minutes) ───────────────
 
 async function checkForLetter() {
   try {
@@ -284,4 +301,9 @@ function closeLetter() {
 }
 
 checkForLetter();
-setInterval(checkForLetter, POLL_INTERVAL);
+setInterval(checkForLetter, 2 * 60 * 1000);
+
+// Re-check immediately when the tab/phone screen comes back into focus
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkForLetter();
+});
