@@ -216,16 +216,11 @@ async function sendMessage() {
 
   let succeeded = false;
   try {
-    const result = await Email.send({
-      Host:     SMTP_HOST,
-      Username: SMTP_USER,
-      Password: SMTP_PASS,
-      To:       RECIPIENT_EMAIL,
-      From:     SMTP_USER,
-      Subject:  'رسالة من الجد 📩',
-      Body:     `رسالة جديدة من جدّك:\n\n${text}\n\nالوقت: ${new Date().toLocaleString('ar-SA')}`,
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ message: text }),
     });
-    if (result !== 'OK') throw new Error(result);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     succeeded = true;
   } catch (err) {
     console.error('Send error:', err);
