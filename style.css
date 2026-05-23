@@ -359,6 +359,67 @@ html, body {
 }
 .letter-close:active { transform: scale(0.97); }
 
+/* ── Overwrite confirm modal ── */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 24px;
+}
+.confirm-overlay[hidden] { display: none; }
+
+.confirm-inner {
+  background: #fff;
+  border: 3px solid var(--danger);
+  border-radius: 20px;
+  padding: 36px 28px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.3);
+  text-align: center;
+}
+
+.confirm-text {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 14px;
+  flex-direction: row-reverse;
+}
+
+.confirm-btn {
+  flex: 1;
+  padding: 22px 12px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 26px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.confirm-btn:active { transform: scale(0.97); }
+
+.confirm-btn--cancel {
+  background: #ede9e3;
+  color: var(--text);
+}
+
+.confirm-btn--proceed {
+  background: var(--danger);
+  color: #fff;
+}
+
 /* ── Contact widget ── */
 .contact-widget {
   position: fixed;
