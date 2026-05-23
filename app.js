@@ -112,7 +112,10 @@ async function transcribe(isRetry) {
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const data = await res.json();
+    const raw = await res.text();
+    let data;
+    try { data = JSON.parse(raw); }
+    catch { throw new Error(`Apps Script returned: ${raw}`); }
     transcript.value = (data.text || '').trim();
     setState('idle');
 
