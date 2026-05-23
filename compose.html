@@ -121,6 +121,21 @@
     .btn-open { background: #1a7a6e; color: #fff; }
     .btn-open:hover { background: #145f55; }
 
+    .btn-clear {
+      width: 100%;
+      padding: 14px;
+      margin-top: 10px;
+      background: none;
+      color: #888;
+      border: 2px solid #ddd;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-clear:hover { border-color: #c0392b; color: #c0392b; }
+
     .note {
       margin-top: 16px;
       font-size: 13px;
@@ -137,51 +152,60 @@
 
     <textarea id="msg" placeholder="Write your message here…"></textarea>
 
-    <button class="btn-send" onclick="sendLetter()">Send to Grandpa →</button>
+    <button class="btn-send" id="btn-send" onclick="sendLetter()">Send to Grandpa →</button>
+    <button class="btn-clear" id="btn-clear" onclick="clearLetter()">Clear letter from his screen</button>
 
     <div class="result" id="result">
-      <div class="result-label">✅ Letter link ready — opening now</div>
-      <div class="result-url" id="result-url"></div>
-      <div class="result-actions">
-        <button class="btn-copy" id="btn-copy" onclick="copyLink()">Copy Link</button>
-        <button class="btn-open" onclick="openLink()">Open Again</button>
-      </div>
+      <div class="result-label" id="result-label"></div>
     </div>
 
-    <p class="note">The link opens his app with your message — share it via WhatsApp if he needs it again.</p>
+    <p class="note">His app checks for new letters automatically every 30 min — no action needed from him.</p>
   </div>
 
   <script>
-    const BASE_URL = 'https://mammer55.github.io/sidu-voice/';
-    let currentUrl = '';
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynRnOepcTh1LnJATtqS1Jb-3gSitCUXBNrVrtwUoCrh03KXxIf36MULAI0lOAhjvKa/exec';
 
-    function sendLetter() {
-      const msg = document.getElementById('msg').value.trim();
+    async function sendLetter() {
+      const msg  = document.getElementById('msg').value.trim();
       if (!msg) { document.getElementById('msg').focus(); return; }
 
-      currentUrl = BASE_URL + '?letter=' + encodeURIComponent(msg);
+      const btn = document.getElementById('btn-send');
+      btn.textContent = 'Sending…';
+      btn.disabled = true;
 
-      document.getElementById('result-url').textContent = currentUrl;
-      document.getElementById('result').style.display = 'block';
-
-      // Open it immediately
-      window.open(currentUrl, '_blank');
-    }
-
-    function copyLink() {
-      navigator.clipboard.writeText(currentUrl).then(() => {
-        const btn = document.getElementById('btn-copy');
-        btn.textContent = 'Copied!';
-        btn.classList.add('copied');
-        setTimeout(() => {
-          btn.textContent = 'Copy Link';
-          btn.classList.remove('copied');
-        }, 2000);
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        mode:   'no-cors',
+        body:   JSON.stringify({ type: 'set_letter', text: msg }),
       });
+
+      btn.textContent = 'Send to Grandpa →';
+      btn.disabled = false;
+      showResult('✅ Letter sent! His app will show it within 30 minutes (or 5 sec if ?debug is on).');
+      document.getElementById('msg').value = '';
     }
 
-    function openLink() {
-      window.open(currentUrl, '_blank');
+    async function clearLetter() {
+      const btn = document.getElementById('btn-clear');
+      btn.textContent = 'Clearing…';
+      btn.disabled = true;
+
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        mode:   'no-cors',
+        body:   JSON.stringify({ type: 'set_letter', text: '' }),
+      });
+
+      btn.textContent = 'Clear letter from his screen';
+      btn.disabled = false;
+      showResult('🗑️ Letter cleared. It will disappear from his screen on the next poll.');
+    }
+
+    function showResult(msg) {
+      const el = document.getElementById('result');
+      document.getElementById('result-label').textContent = msg;
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 5000);
     }
 
     // Submit on Cmd+Enter

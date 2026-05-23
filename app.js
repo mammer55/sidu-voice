@@ -244,52 +244,44 @@ async function sendMessage() {
   }
 }
 
-// ── Letter from Mustafa (Mustafa → grandpa via URL ?letter=...) ───────────────
-//
-// HOW TO SEND GRANDPA A LETTER:
-//   Share this URL with him (e.g. via WhatsApp):
-//   https://yoursite.com/?letter=يا جدي الحبيب، كيف حالك...
-//   He opens it → sees "رسالة جديدة من مصطفى" → taps → reads your letter.
-//
-function initLetter() {
-  const params    = new URLSearchParams(window.location.search);
-  const newLetter = params.get('letter');
+// ── Letter from Mustafa — server-side polling ─────────────────────────────────
+// Add ?debug to the URL for 5-second polling (normal = 30 minutes)
+const DEBUG_MODE     = new URLSearchParams(window.location.search).has('debug');
+const POLL_INTERVAL  = DEBUG_MODE ? 5_000 : 30 * 60 * 1000;
 
-  if (newLetter && newLetter.trim()) {
-    const entry = { text: newLetter.trim(), date: new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' }) };
-    localStorage.setItem('mustafa_letter', JSON.stringify(entry));
-    history.replaceState(null, '', window.location.pathname);
-  }
-
-  // Only show badge if there's a real letter with content
+async function checkForLetter() {
   try {
-    const stored = localStorage.getItem('mustafa_letter');
-    if (stored) {
-      const { text } = JSON.parse(stored);
-      if (text && text.trim()) {
-        document.getElementById('letter-badge').hidden = false;
-      } else {
-        localStorage.removeItem('mustafa_letter');
-      }
-    }
-  } catch {
-    localStorage.removeItem('mustafa_letter');
+    const res    = await fetch(APPS_SCRIPT_URL);
+    const letter = await res.json();
+    if (!letter || !letter.text) return showBadge(false);
+
+    const dismissedId = localStorage.getItem('dismissed_letter_id');
+    showBadge(letter.id !== dismissedId, letter);
+  } catch (err) {
+    console.warn('Letter poll failed:', err);
   }
 }
 
+function showBadge(show, letter = null) {
+  const badge = document.getElementById('letter-badge');
+  badge.hidden = !show;
+  if (show && letter) badge._letter = letter;
+}
+
 function openLetter() {
-  const stored = localStorage.getItem('mustafa_letter');
-  if (!stored) return;
-  const { text, date } = JSON.parse(stored);
-  document.getElementById('letter-date').textContent = date;
-  document.getElementById('letter-text').textContent = text;
+  const letter = document.getElementById('letter-badge')._letter;
+  if (!letter) return;
+  document.getElementById('letter-date').textContent = letter.date;
+  document.getElementById('letter-text').textContent = letter.text;
   document.getElementById('letter-panel').hidden = false;
 }
 
 function closeLetter() {
+  const letter = document.getElementById('letter-badge')._letter;
+  if (letter) localStorage.setItem('dismissed_letter_id', letter.id);
   document.getElementById('letter-panel').hidden = true;
-  localStorage.removeItem('mustafa_letter');
   document.getElementById('letter-badge').hidden = true;
 }
 
-initLetter();
+checkForLetter();
+setInterval(checkForLetter, POLL_INTERVAL);
