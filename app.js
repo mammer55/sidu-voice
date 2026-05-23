@@ -11,6 +11,11 @@ let appState       = 'idle'; // 'idle' | 'recording' | 'processing'
 let currentMode    = 'accurate'; // 'accurate' | 'live'
 
 const LS_TEXT_KEY = 'sidu-voice-text';
+const LS_LANG_KEY = 'sidu-voice-lang';
+
+let currentLang = (() => {
+  try { return localStorage.getItem(LS_LANG_KEY) || 'ar'; } catch { return 'ar'; }
+})();
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const body            = document.body;
@@ -167,7 +172,7 @@ async function transcribe(isRetry) {
     const formData = new FormData();
     formData.append('file',     audioBlob, `audio.${ext}`);
     formData.append('model',    'whisper-large-v3-turbo');
-    formData.append('language', 'ar');
+    formData.append('language', currentLang);
 
     const res = await fetch(GROQ_URL, {
       method:  'POST',
@@ -567,6 +572,38 @@ function closeLetter() {
   document.getElementById('letter-panel').hidden = true;
   document.getElementById('letter-badge').hidden = true;
 }
+
+// ── Hidden language toggle (Ctrl+Shift+E) ────────────────────────────────────
+function toggleLanguage() {
+  currentLang = currentLang === 'ar' ? 'en' : 'ar';
+  try { localStorage.setItem(LS_LANG_KEY, currentLang); } catch { /* silent */ }
+  flashLangToast(currentLang === 'en' ? 'English mode' : 'الوضع العربي');
+}
+
+function flashLangToast(msg) {
+  let el = document.getElementById('lang-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'lang-toast';
+    el.style.cssText =
+      'position:fixed;top:20px;left:50%;transform:translateX(-50%);' +
+      'background:#1c1c1e;color:#fff;padding:10px 18px;border-radius:10px;' +
+      'font-size:16px;font-weight:600;z-index:500;opacity:0;' +
+      'transition:opacity 0.2s;pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  requestAnimationFrame(() => { el.style.opacity = '1'; });
+  clearTimeout(flashLangToast._t);
+  flashLangToast._t = setTimeout(() => { el.style.opacity = '0'; }, 1500);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
+    e.preventDefault();
+    toggleLanguage();
+  }
+});
 
 checkForLetter();
 setInterval(checkForLetter, 2 * 60 * 1000);
