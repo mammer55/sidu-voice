@@ -55,11 +55,21 @@
 
     <h1 class="app-title">مسجّل الصوت</h1>
 
+    <!-- Mode toggle -->
+    <div class="mode-toggle" role="group" aria-label="وضع التسجيل">
+      <button id="mode-accurate" class="mode-pill mode-pill--active" onclick="setMode('accurate')">
+        دقيق ✅
+      </button>
+      <button id="mode-live" class="mode-pill" onclick="setMode('live')">
+        فوري 🎙
+      </button>
+    </div>
+
     <!-- Record / Stop button -->
     <div class="record-area">
-      <button id="btn-record" class="btn-main btn-record" onclick="toggleRecording()">
+      <button id="btn-record" class="btn-main btn-record" onclick="handleRecordBtn()">
         <span class="btn-icon">🎙️</span>
-        <span class="btn-label" id="btn-label">سجّل</span>
+        <span class="btn-label" id="btn-label">ابدأ</span>
       </button>
 
       <!-- Pulse rings shown only while recording -->
@@ -67,7 +77,7 @@
       <div class="pulse-ring ring2"></div>
     </div>
 
-    <!-- Processing indicator -->
+    <!-- Processing indicator (accurate mode only) -->
     <div class="processing-indicator" id="processing-indicator">
       <div class="spinner"></div>
       <span>جارٍ المعالجة…</span>
@@ -83,7 +93,7 @@
       حاول مرة أخرى
     </button>
 
-    <!-- Transcript textarea -->
+    <!-- Transcript area — textarea for accurate, div for live (to show interim) -->
     <div class="transcript-wrapper">
       <label class="transcript-label" for="transcript">النص المكتوب</label>
       <textarea
@@ -93,6 +103,8 @@
         placeholder="سيظهر النص هنا بعد التسجيل…"
         spellcheck="false"
       ></textarea>
+      <!-- Live mode display (interim + final) -->
+      <div id="live-transcript" class="transcript live-transcript" dir="rtl" hidden></div>
     </div>
 
     <!-- Copy button -->

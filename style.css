@@ -46,6 +46,39 @@ html, body {
   letter-spacing: 0.01em;
 }
 
+/* ── Mode toggle ── */
+.mode-toggle {
+  display: flex;
+  gap: 12px;
+  background: #ede9e3;
+  border-radius: 50px;
+  padding: 6px;
+  width: 100%;
+  max-width: 340px;
+}
+
+.mode-pill {
+  flex: 1;
+  padding: 18px 10px;
+  border: none;
+  border-radius: 44px;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  background: transparent;
+  color: var(--muted);
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.mode-pill--active {
+  background: var(--teal);
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(26,122,110,0.35);
+}
+
 /* ── Record area (button + pulse rings) ── */
 .record-area {
   position: relative;
@@ -424,6 +457,19 @@ html, body {
   text-align: center;
   line-height: 1.5;
 }
+
+/* ── Live transcript display ── */
+.live-transcript {
+  min-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: default;
+  resize: vertical;
+}
+
+.live-final   { color: var(--text); }
+.live-interim { color: #aaa; }
 
 /* ── Responsive tweaks ── */
 @media (max-width: 400px) {
