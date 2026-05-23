@@ -273,6 +273,7 @@ html, body {
   z-index: 200;
   padding: 24px;
 }
+.letter-overlay[hidden] { display: none; }
 
 .letter-inner {
   background: #fffef5;
