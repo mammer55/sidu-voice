@@ -1,7 +1,7 @@
 'use strict';
 
-// GROQ_API_KEY is loaded from config.js (gitignored)
-const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
+const GROQ_API_KEY = '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';
+const GROQ_URL     = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
 let mediaRecorder = null;
 let audioChunks   = [];
@@ -195,7 +195,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── Contact widget (grandpa → Mustafa) ───────────────────────────────────────
-// Credentials live in config.js (gitignored). See config.example.js for the template.
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynRnOepcTh1LnJATtqS1Jb-3gSitCUXBNrVrtwUoCrh03KXxIf36MULAI0lOAhjvKa/exec';
 
 let contactOpen = false;
 const toggleBtn = document.querySelector('.contact-toggle');
