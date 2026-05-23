@@ -28,11 +28,11 @@ function setState(s) {
 
   if (s === 'idle') {
     btnIcon.textContent  = '🎙️';
-    btnLabel.textContent = 'سجّل';
+    btnLabel.textContent = 'ابدأ';
     btnRecord.disabled   = false;
   } else if (s === 'recording') {
     btnIcon.textContent  = '⏹';
-    btnLabel.textContent = 'أوقف';
+    btnLabel.textContent = 'وقف';
     btnRecord.disabled   = false;
   } else if (s === 'processing') {
     btnIcon.textContent  = '⏳';
