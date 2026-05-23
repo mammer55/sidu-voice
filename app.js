@@ -1,7 +1,6 @@
 'use strict';
 
-const GROQ_API_KEY = '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';
-const GROQ_URL     = 'https://api.groq.com/openai/v1/audio/transcriptions';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynRnOepcTh1LnJATtqS1Jb-3gSitCUXBNrVrtwUoCrh03KXxIf36MULAI0lOAhjvKa/exec';
 
 let mediaRecorder = null;
 let audioChunks   = [];
@@ -88,28 +87,30 @@ function stopRecording() {
 }
 
 // ── Transcription ─────────────────────────────────────────────────────────────
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function transcribe(isRetry) {
   setState('processing');
   hideError();
   hideRetry();
 
   try {
-    const ext      = extFromMime(audioBlob.type);
-    const formData = new FormData();
-    formData.append('file',     audioBlob, `audio.${ext}`);
-    formData.append('model',    'whisper-large-v3-turbo');
-    formData.append('language', 'ar');
+    const ext    = extFromMime(audioBlob.type);
+    const audio  = await blobToBase64(audioBlob);
 
-    const res = await fetch(GROQ_URL, {
-      method:  'POST',
-      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` },
-      body:    formData,
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body:   JSON.stringify({ type: 'transcribe', audio, mimeType: audioBlob.type, ext }),
     });
 
-    if (!res.ok) {
-      const msg = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status}: ${msg}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
     transcript.value = (data.text || '').trim();
@@ -118,7 +119,6 @@ async function transcribe(isRetry) {
   } catch (err) {
     console.error('Transcription error:', err);
     if (!isRetry) {
-      // Single automatic retry after 3 s
       setTimeout(() => transcribe(true), 3000);
     } else {
       setState('idle');
@@ -195,7 +195,6 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── Contact widget (grandpa → Mustafa) ───────────────────────────────────────
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynRnOepcTh1LnJATtqS1Jb-3gSitCUXBNrVrtwUoCrh03KXxIf36MULAI0lOAhjvKa/exec';
 
 let contactOpen = false;
 const toggleBtn = document.querySelector('.contact-toggle');
@@ -218,7 +217,7 @@ async function sendMessage() {
   try {
     const res = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({ type: 'email', message: text }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     succeeded = true;
