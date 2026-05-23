@@ -1,0 +1,20 @@
+{
+  "name": "مسجّل الصوت",
+  "short_name": "مسجّل",
+  "description": "تسجيل صوتي وتحويله إلى نص عربي",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f4ef",
+  "theme_color": "#1a7a6e",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

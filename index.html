@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="theme-color" content="#1a7a6e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="مسجّل الصوت" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="style.css" />
+  <title>مسجّل الصوت</title>
+</head>
+<body data-state="idle">
+
+  <div class="container">
+
+    <h1 class="app-title">مسجّل الصوت</h1>
+
+    <!-- Record / Stop button -->
+    <div class="record-area">
+      <button id="btn-record" class="btn-main btn-record" onclick="toggleRecording()">
+        <span class="btn-icon">🎙️</span>
+        <span class="btn-label" id="btn-label">سجّل</span>
+      </button>
+
+      <!-- Pulse rings shown only while recording -->
+      <div class="pulse-ring ring1"></div>
+      <div class="pulse-ring ring2"></div>
+    </div>
+
+    <!-- Processing indicator -->
+    <div class="processing-indicator" id="processing-indicator">
+      <div class="spinner"></div>
+      <span>جارٍ المعالجة…</span>
+    </div>
+
+    <!-- Error message -->
+    <div class="error-box" id="error-box" hidden>
+      <span id="error-text"></span>
+    </div>
+
+    <!-- Manual retry button (shown only after double-failure) -->
+    <button class="btn-retry" id="btn-retry" hidden onclick="manualRetry()">
+      حاول مرة أخرى
+    </button>
+
+    <!-- Transcript textarea -->
+    <div class="transcript-wrapper">
+      <label class="transcript-label" for="transcript">النص المكتوب</label>
+      <textarea
+        id="transcript"
+        class="transcript"
+        dir="rtl"
+        placeholder="سيظهر النص هنا بعد التسجيل…"
+        spellcheck="false"
+      ></textarea>
+    </div>
+
+    <!-- Copy button -->
+    <button class="btn-copy" id="btn-copy" onclick="copyTranscript()">
+      <span id="copy-label">انسخ</span>
+    </button>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
