@@ -198,6 +198,7 @@ if ('serviceWorker' in navigator) {
 // Credentials live in config.js (gitignored). See config.example.js for the template.
 
 let contactOpen = false;
+const toggleBtn = document.querySelector('.contact-toggle');
 
 function toggleContact() {
   contactOpen = !contactOpen;
@@ -213,8 +214,9 @@ async function sendMessage() {
   sendBtn.disabled    = true;
   sendBtn.textContent = 'جارٍ الإرسال…';
 
+  let succeeded = false;
   try {
-    await Email.send({
+    const result = await Email.send({
       Host:     SMTP_HOST,
       Username: SMTP_USER,
       Password: SMTP_PASS,
@@ -223,22 +225,29 @@ async function sendMessage() {
       Subject:  'رسالة من الجد 📩',
       Body:     `رسالة جديدة من جدّك:\n\n${text}\n\nالوقت: ${new Date().toLocaleString('ar-SA')}`,
     });
-
-    msgEl.value = '';
-    document.getElementById('contact-success').hidden = false;
-    setTimeout(() => {
-      document.getElementById('contact-success').hidden = true;
-      contactOpen = false;
-      document.getElementById('contact-panel').hidden = true;
-    }, 3500);
+    if (result !== 'OK') throw new Error(result);
+    succeeded = true;
   } catch (err) {
     console.error('Send error:', err);
-    // Fallback — open mail client pre-filled
-    window.location.href =
-      `mailto:${RECIPIENT_EMAIL}?subject=${encodeURIComponent('رسالة من الجد')}&body=${encodeURIComponent(text)}`;
-  } finally {
-    sendBtn.disabled    = false;
-    sendBtn.textContent = 'إرسال';
+  }
+
+  sendBtn.disabled    = false;
+  sendBtn.textContent = 'إرسال';
+
+  if (succeeded) {
+    msgEl.value = '';
+    // Collapse panel and show "Sent!" on the toggle button
+    contactOpen = false;
+    document.getElementById('contact-panel').hidden = true;
+    toggleBtn.innerHTML = '<span>✅</span><span>تم الإرسال!</span>';
+    setTimeout(() => {
+      toggleBtn.innerHTML = '<span>💬</span><span>مشكلة؟ تواصل مع مصطفى</span>';
+    }, 4000);
+  } else {
+    // Show clear error inside the panel
+    const errEl = document.getElementById('contact-error');
+    errEl.hidden = false;
+    setTimeout(() => { errEl.hidden = true; }, 5000);
   }
 }
 
@@ -253,14 +262,25 @@ function initLetter() {
   const params    = new URLSearchParams(window.location.search);
   const newLetter = params.get('letter');
 
-  if (newLetter) {
-    const entry = { text: newLetter, date: new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' }) };
+  if (newLetter && newLetter.trim()) {
+    const entry = { text: newLetter.trim(), date: new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' }) };
     localStorage.setItem('mustafa_letter', JSON.stringify(entry));
     history.replaceState(null, '', window.location.pathname);
   }
 
-  if (localStorage.getItem('mustafa_letter')) {
-    document.getElementById('letter-badge').hidden = false;
+  // Only show badge if there's a real letter with content
+  try {
+    const stored = localStorage.getItem('mustafa_letter');
+    if (stored) {
+      const { text } = JSON.parse(stored);
+      if (text && text.trim()) {
+        document.getElementById('letter-badge').hidden = false;
+      } else {
+        localStorage.removeItem('mustafa_letter');
+      }
+    }
+  } catch {
+    localStorage.removeItem('mustafa_letter');
   }
 }
 

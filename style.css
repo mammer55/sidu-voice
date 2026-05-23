@@ -243,8 +243,8 @@ html, body {
   background: #fff8e1;
   border: 2px solid #f0b429;
   border-radius: 40px;
-  padding: 14px 22px;
-  font-size: 20px;
+  padding: 16px 26px;
+  font-size: 24px;
   font-weight: 700;
   color: #7a4f00;
   display: flex;
@@ -287,7 +287,7 @@ html, body {
 }
 
 .letter-from {
-  font-size: 17px;
+  font-size: 22px;
   color: var(--muted);
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -295,14 +295,14 @@ html, body {
 }
 
 .letter-date {
-  font-size: 16px;
+  font-size: 20px;
   color: #b0956a;
   margin-bottom: 28px;
   font-style: italic;
 }
 
 .letter-text {
-  font-size: 24px;
+  font-size: 28px;
   line-height: 1.9;
   color: var(--text);
   white-space: pre-wrap;
@@ -311,12 +311,12 @@ html, body {
 
 .letter-close {
   width: 100%;
-  padding: 18px;
+  padding: 22px;
   background: var(--teal);
   color: #fff;
   border: none;
   border-radius: var(--radius);
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
   font-family: var(--font);
   cursor: pointer;
@@ -344,8 +344,8 @@ html, body {
   color: #fff;
   border: none;
   border-radius: 40px;
-  padding: 16px 26px;
-  font-size: 20px;
+  padding: 18px 28px;
+  font-size: 24px;
   font-weight: 700;
   font-family: var(--font);
   cursor: pointer;
@@ -360,31 +360,31 @@ html, body {
   background: var(--surface);
   border: 2px solid #d8d4ce;
   border-radius: 20px;
-  padding: 24px;
-  width: min(360px, calc(100vw - 40px));
+  padding: 28px;
+  width: min(400px, calc(100vw - 40px));
   box-shadow: 0 8px 32px rgba(0,0,0,0.14);
   text-align: right;
 }
 
 .contact-header {
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--teal-dark);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .contact-desc {
-  font-size: 18px;
+  font-size: 22px;
   color: var(--muted);
   line-height: 1.65;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .contact-msg {
   width: 100%;
-  min-height: 110px;
-  padding: 16px;
-  font-size: 20px;
+  min-height: 130px;
+  padding: 18px;
+  font-size: 24px;
   font-family: var(--font);
   direction: rtl;
   border: 2px solid #d8d4ce;
@@ -392,19 +392,19 @@ html, body {
   resize: vertical;
   color: var(--text);
   outline: none;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   -webkit-appearance: none;
 }
 .contact-msg:focus { border-color: var(--teal); }
 
 .contact-send {
   width: 100%;
-  padding: 16px;
+  padding: 20px;
   background: var(--teal);
   color: #fff;
   border: none;
   border-radius: 14px;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 700;
   font-family: var(--font);
   cursor: pointer;
@@ -414,10 +414,10 @@ html, body {
 .contact-send:active { transform: scale(0.98); }
 .contact-send:disabled { background: #aaa; cursor: not-allowed; transform: none; }
 
-.contact-success {
+.contact-error {
   margin-top: 14px;
-  font-size: 20px;
-  color: var(--teal-dark);
+  font-size: 22px;
+  color: var(--danger);
   font-weight: 700;
   text-align: center;
   line-height: 1.5;
