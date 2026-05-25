@@ -171,7 +171,7 @@ async function transcribe(isRetry) {
     const ext      = extFromMime(audioBlob.type);
     const formData = new FormData();
     formData.append('file',     audioBlob, `audio.${ext}`);
-    formData.append('model',    'whisper-large-v3-turbo');
+    formData.append('model',    devModel);
     formData.append('language', currentLang);
 
     const res = await fetch(GROQ_URL, {
@@ -217,10 +217,12 @@ function manualRetry() {
 // being recorded while sending is paused — they just stack up in the queue and
 // drain automatically once a slot opens.
 
-const CHUNK_MS         = 5000;
+let CHUNK_MS           = 5000;
 const RATE_WINDOW_MS   = 60000;
-const RATE_MAX         = 18;   // safe buffer below Groq's 20/min
-const COOLDOWN_429_MS  = 30000;
+let RATE_MAX           = 18;   // safe buffer below Groq's 20/min
+let COOLDOWN_429_MS    = 30000;
+
+let devModel          = 'whisper-large-v3-turbo';
 
 let continuousStream  = null;
 let chunkRecorder     = null;
@@ -352,8 +354,11 @@ async function transcribeChunk(blob) {
   const ext      = extFromMime(blob.type);
   const formData = new FormData();
   formData.append('file',     blob, `audio.${ext}`);
-  formData.append('model',    'whisper-large-v3-turbo');
-  formData.append('language', 'ar');
+  formData.append('model',    devModel);
+  formData.append('language', currentLang);
+
+  const blobKB = Math.round(blob.size / 1024);
+  const t0     = Date.now();
 
   const res = await fetch(GROQ_URL, {
     method:  'POST',
@@ -362,15 +367,28 @@ async function transcribeChunk(blob) {
   });
 
   if (res.status === 429) {
+    devAddLogEntry({ time: new Date().toLocaleTimeString(), latency: null, chars: null, blobKB, ok: false, err: '429' });
     const e = new Error('rate-limited');
     e.is429 = true;
     throw e;
   }
   if (!res.ok) {
+    devAddLogEntry({ time: new Date().toLocaleTimeString(), latency: null, chars: null, blobKB, ok: false, err: `HTTP ${res.status}` });
     throw new Error(`HTTP ${res.status}`);
   }
-  const data = await res.json();
-  return (data.text || '').trim();
+
+  const data    = await res.json();
+  const text    = (data.text || '').trim();
+  const latency = Date.now() - t0;
+
+  devStats.totalSent++;
+  devStats.totalChars += text.length;
+  devStats.lastBlobKB  = blobKB;
+  devStats.latencies.push(latency);
+  if (devStats.latencies.length > 50) devStats.latencies.shift();
+  devAddLogEntry({ time: new Date().toLocaleTimeString(), latency, chars: text.length, blobKB, ok: true, err: null });
+
+  return text;
 }
 
 function appendChunkText(text) {
@@ -603,7 +621,204 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     toggleLanguage();
   }
+  if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+    e.preventDefault();
+    toggleDevPanel();
+  }
 });
+
+// 5 rapid taps on title opens dev panel (mobile)
+let _titleTaps = 0, _titleTapTimer = null;
+document.querySelector('.app-title').addEventListener('click', () => {
+  _titleTaps++;
+  clearTimeout(_titleTapTimer);
+  _titleTapTimer = setTimeout(() => { _titleTaps = 0; }, 800);
+  if (_titleTaps >= 5) { _titleTaps = 0; toggleDevPanel(); }
+});
+
+// ── Developer Mode ───────────────────────────────────────────────────────────
+
+let devPanelOpen   = false;
+let devStatsTicker = null;
+
+const devStats = {
+  totalSent: 0,
+  totalChars: 0,
+  latencies: [],
+  lastBlobKB: 0,
+};
+
+const devLog = [];
+
+function openDevPanel() {
+  devPanelOpen = true;
+  document.getElementById('dev-panel').classList.add('dev-panel--open');
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  set('dev-chunk-ms',      CHUNK_MS);
+  set('dev-chunk-ms-num',  CHUNK_MS);
+  set('dev-rate-max',      RATE_MAX);
+  set('dev-rate-max-num',  RATE_MAX);
+  set('dev-cooldown',      COOLDOWN_429_MS / 1000);
+  set('dev-cooldown-num',  COOLDOWN_429_MS / 1000);
+  set('dev-model',         devModel);
+
+  devOnChunkMs();
+  devOnRateMax();
+  devRenderLog();
+  devRefreshStats();
+  devStatsTicker = setInterval(devRefreshStats, 1000);
+}
+
+function closeDevPanel() {
+  devPanelOpen = false;
+  document.getElementById('dev-panel').classList.remove('dev-panel--open');
+  if (devStatsTicker) { clearInterval(devStatsTicker); devStatsTicker = null; }
+}
+
+function toggleDevPanel() {
+  if (devPanelOpen) closeDevPanel(); else openDevPanel();
+}
+
+function devOnChunkMs() {
+  const ms  = parseInt(document.getElementById('dev-chunk-ms').value);
+  CHUNK_MS  = ms;
+  const tpm = (60000 / ms).toFixed(1);
+  const eff = Math.min(parseFloat(tpm), RATE_MAX).toFixed(1);
+  document.getElementById('dev-chunk-calc').textContent =
+    `${(ms / 1000).toFixed(1)}s chunks → theoretical ${tpm}/min · effective max ${eff}/min`;
+}
+
+function devOnRateMax() {
+  const max  = parseInt(document.getElementById('dev-rate-max').value);
+  RATE_MAX   = max;
+  const minS = (60 / max).toFixed(1);
+  document.getElementById('dev-rate-calc').textContent =
+    `allow ${max}/min · chunks need ≥${minS}s to avoid queue buildup`;
+}
+
+function devOnCooldown() {
+  COOLDOWN_429_MS = parseInt(document.getElementById('dev-cooldown').value) * 1000;
+}
+
+function devOnModel() {
+  devModel = document.getElementById('dev-model').value;
+}
+
+function devRefreshStats() {
+  pruneRequests();
+  const rolling = requestTimestamps.length;
+  const avgLat  = devStats.latencies.length
+    ? Math.round(devStats.latencies.reduce((a, b) => a + b, 0) / devStats.latencies.length)
+    : 0;
+  const coolLeft = cooldownUntil > Date.now()
+    ? Math.ceil((cooldownUntil - Date.now()) / 1000) + 's remaining'
+    : 'No';
+
+  const g = (id) => document.getElementById(id);
+  g('dstat-rate').textContent     = rolling + '/min';
+  g('dstat-queue').textContent    = pendingChunks.length + ' chunk' + (pendingChunks.length !== 1 ? 's' : '');
+  g('dstat-sent').textContent     = devStats.totalSent;
+  g('dstat-chars').textContent    = devStats.totalChars.toLocaleString();
+  g('dstat-latency').textContent  = avgLat ? avgLat + 'ms' : '—';
+  g('dstat-blob').textContent     = devStats.lastBlobKB ? devStats.lastBlobKB + ' KB' : '—';
+  g('dstat-mime').textContent     = bestMimeType() || 'unknown';
+  g('dstat-cooldown').textContent = coolLeft;
+}
+
+function devAddLogEntry(entry) {
+  devLog.push(entry);
+  if (devLog.length > 100) devLog.shift();
+  const countEl = document.getElementById('dev-log-count');
+  if (countEl) countEl.textContent = devLog.length;
+  if (devPanelOpen) devRenderLog();
+}
+
+function devRenderLog() {
+  const container = document.getElementById('dev-log-entries');
+  if (!container) return;
+  if (devLog.length === 0) {
+    container.innerHTML = '<div class="dev-log-empty">No requests yet</div>';
+    return;
+  }
+  container.innerHTML = devLog.slice().reverse().map(e =>
+    `<div class="dev-log-entry${e.ok ? '' : ' dev-log-entry--err'}">` +
+      `<span>${e.time}</span>` +
+      `<span>${e.latency != null ? e.latency + 'ms' : '—'}</span>` +
+      `<span>${e.chars != null ? e.chars : '—'}</span>` +
+      `<span>${e.blobKB}KB</span>` +
+      `<span class="dev-log-status">${e.ok ? '✓' : '✗ ' + e.err}</span>` +
+    `</div>`
+  ).join('');
+}
+
+function devClearQueue() {
+  pendingChunks = [];
+  if (devPanelOpen) devRefreshStats();
+}
+
+function devForceFlush() {
+  if (!pumping) pumpQueue();
+}
+
+function devSimulate429() {
+  cooldownUntil = Date.now() + COOLDOWN_429_MS;
+  showRateBanner();
+  if (devPanelOpen) devRefreshStats();
+}
+
+function devCopyDebugInfo() {
+  pruneRequests();
+  const avgLat = devStats.latencies.length
+    ? Math.round(devStats.latencies.reduce((a, b) => a + b, 0) / devStats.latencies.length)
+    : 0;
+  const info = [
+    '=== Voice Transcriber Debug Info ===',
+    `Time:         ${new Date().toISOString()}`,
+    `CHUNK_MS:     ${CHUNK_MS}`,
+    `RATE_MAX:     ${RATE_MAX}`,
+    `COOLDOWN_MS:  ${COOLDOWN_429_MS}`,
+    `Model:        ${devModel}`,
+    `Language:     ${currentLang}`,
+    `Mode:         ${currentMode}`,
+    `Rolling RPM:  ${requestTimestamps.length}`,
+    `Queue depth:  ${pendingChunks.length}`,
+    `Total sent:   ${devStats.totalSent}`,
+    `Total chars:  ${devStats.totalChars}`,
+    `Avg latency:  ${avgLat}ms`,
+    `Last blob:    ${devStats.lastBlobKB}KB`,
+    `MIME type:    ${bestMimeType()}`,
+    `UserAgent:    ${navigator.userAgent}`,
+  ].join('\n');
+  navigator.clipboard.writeText(info).catch(() => {});
+  const btn = document.getElementById('dev-copy-btn');
+  const orig = btn.textContent;
+  btn.textContent = '✓ Copied!';
+  setTimeout(() => { btn.textContent = orig; }, 2000);
+}
+
+function devDownloadLog() {
+  if (!devLog.length) return;
+  const lines = ['time,latency_ms,chars,blob_kb,ok,error'].concat(
+    devLog.map(e =>
+      `${e.time},${e.latency ?? ''},${e.chars ?? ''},${e.blobKB},${e.ok},${e.err ?? ''}`
+    )
+  );
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `transcriber-log-${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function devClearLog() {
+  devLog.length = 0;
+  const countEl = document.getElementById('dev-log-count');
+  if (countEl) countEl.textContent = '0';
+  devRenderLog();
+}
 
 checkForLetter();
 setInterval(checkForLetter, 2 * 60 * 1000);

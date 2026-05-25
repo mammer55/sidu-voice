@@ -546,6 +546,311 @@ html, body {
 .live-final   { color: var(--text); }
 .live-interim { color: #aaa; }
 
+/* ── Developer Panel ── */
+.dev-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 82vh;
+  max-height: 720px;
+  background: #0d1117;
+  color: #c9d1d9;
+  border-top: 2px solid #388bfd;
+  border-radius: 16px 16px 0 0;
+  z-index: 950;
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+  font-size: 13px;
+  direction: ltr;
+  text-align: left;
+}
+
+.dev-panel.dev-panel--open {
+  transform: translateY(0);
+  box-shadow: 0 -8px 48px rgba(56, 139, 253, 0.18);
+}
+
+.dev-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 14px 20px;
+  border-bottom: 1px solid #21262d;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.dev-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.dev-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #388bfd;
+  white-space: nowrap;
+}
+
+.dev-shortcut {
+  font-size: 10px;
+  color: #484f58;
+  background: #161b22;
+  border: 1px solid #21262d;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.dev-close {
+  background: none;
+  border: none;
+  color: #484f58;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+  font-family: inherit;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.dev-close:hover { color: #c9d1d9; background: #21262d; }
+
+.dev-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 40px;
+}
+
+.dev-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid #21262d;
+}
+
+.dev-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #388bfd;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+/* Settings fields */
+.dev-field {
+  margin-bottom: 18px;
+}
+.dev-field:last-child { margin-bottom: 0; }
+
+.dev-label {
+  display: block;
+  font-size: 11px;
+  color: #8b949e;
+  margin-bottom: 7px;
+  letter-spacing: 0.03em;
+}
+
+.dev-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dev-slider {
+  flex: 1;
+  height: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: #21262d;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.dev-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #388bfd;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px #0d1117, 0 0 0 4px rgba(56,139,253,0.3);
+  transition: box-shadow 0.15s;
+}
+.dev-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 2px #0d1117, 0 0 0 6px rgba(56,139,253,0.4);
+}
+.dev-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: #388bfd;
+  cursor: pointer;
+}
+
+.dev-num {
+  width: 72px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 8px;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.dev-num:focus { border-color: #388bfd; }
+
+.dev-unit {
+  font-size: 11px;
+  color: #484f58;
+  width: 26px;
+  flex-shrink: 0;
+}
+
+.dev-calc {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #3fb950;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.dev-select {
+  width: 100%;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 8px 12px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.dev-select:focus { border-color: #388bfd; }
+
+/* Stats grid */
+.dev-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.dev-stat {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dev-stat--wide { grid-column: 1 / -1; }
+
+.dev-stat-label {
+  font-size: 9px;
+  color: #484f58;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dev-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: #3fb950;
+  line-height: 1.2;
+}
+
+.dev-stat-val--mime {
+  font-size: 11px;
+  color: #8b949e;
+  font-weight: 400;
+  word-break: break-all;
+}
+
+/* Actions */
+.dev-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dev-btn {
+  padding: 8px 14px;
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.dev-btn:hover { background: #30363d; border-color: #8b949e; }
+.dev-btn:active { transform: scale(0.96); }
+
+.dev-btn--warn  { border-color: #d29922; color: #d29922; }
+.dev-btn--warn:hover { background: rgba(210,153,34,0.12); }
+
+.dev-btn--danger { border-color: #f85149; color: #f85149; }
+.dev-btn--danger:hover { background: rgba(248,81,73,0.12); }
+
+/* Request log */
+.dev-log-header {
+  display: grid;
+  grid-template-columns: 72px 68px 52px 46px 1fr;
+  gap: 6px;
+  font-size: 9px;
+  color: #484f58;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #21262d;
+  margin-bottom: 4px;
+}
+
+.dev-log-body {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.dev-log-empty {
+  font-size: 12px;
+  color: #484f58;
+  padding: 20px 0;
+  text-align: center;
+  font-style: italic;
+}
+
+.dev-log-entry {
+  display: grid;
+  grid-template-columns: 72px 68px 52px 46px 1fr;
+  gap: 6px;
+  padding: 5px 0;
+  font-size: 12px;
+  color: #8b949e;
+  border-bottom: 1px solid #161b22;
+}
+
+.dev-log-entry--err { color: #f85149; }
+.dev-log-entry .dev-log-status { color: #3fb950; }
+.dev-log-entry--err .dev-log-status { color: #f85149; }
+
 /* ── Responsive tweaks ── */
 @media (max-width: 400px) {
   .btn-main { width: 140px; height: 140px; }

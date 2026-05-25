@@ -129,6 +129,139 @@
 
   </div>
 
+  <!-- Developer Panel (Cmd/Ctrl+Shift+D, or 5 taps on title) -->
+  <div id="dev-panel" class="dev-panel" dir="ltr">
+    <div class="dev-header">
+      <div class="dev-header-left">
+        <span class="dev-title">🛠 Developer Mode</span>
+        <span class="dev-shortcut">Ctrl+Shift+D · 5× title tap</span>
+      </div>
+      <button class="dev-close" onclick="closeDevPanel()">✕</button>
+    </div>
+
+    <div class="dev-body">
+
+      <!-- Settings -->
+      <div class="dev-section">
+        <div class="dev-section-title">Settings</div>
+
+        <div class="dev-field">
+          <label class="dev-label">Chunk Duration</label>
+          <div class="dev-slider-row">
+            <input type="range" id="dev-chunk-ms" class="dev-slider"
+              min="1000" max="15000" step="500" value="5000"
+              oninput="document.getElementById('dev-chunk-ms-num').value=this.value; devOnChunkMs()">
+            <input type="number" id="dev-chunk-ms-num" class="dev-num"
+              min="1000" max="15000" step="500" value="5000"
+              oninput="document.getElementById('dev-chunk-ms').value=this.value; devOnChunkMs()">
+            <span class="dev-unit">ms</span>
+          </div>
+          <div class="dev-calc" id="dev-chunk-calc"></div>
+        </div>
+
+        <div class="dev-field">
+          <label class="dev-label">Max Req / Min</label>
+          <div class="dev-slider-row">
+            <input type="range" id="dev-rate-max" class="dev-slider"
+              min="1" max="20" step="1" value="18"
+              oninput="document.getElementById('dev-rate-max-num').value=this.value; devOnRateMax()">
+            <input type="number" id="dev-rate-max-num" class="dev-num"
+              min="1" max="20" step="1" value="18"
+              oninput="document.getElementById('dev-rate-max').value=this.value; devOnRateMax()">
+            <span class="dev-unit">rpm</span>
+          </div>
+          <div class="dev-calc" id="dev-rate-calc"></div>
+        </div>
+
+        <div class="dev-field">
+          <label class="dev-label">429 Cooldown</label>
+          <div class="dev-slider-row">
+            <input type="range" id="dev-cooldown" class="dev-slider"
+              min="5" max="120" step="5" value="30"
+              oninput="document.getElementById('dev-cooldown-num').value=this.value; devOnCooldown()">
+            <input type="number" id="dev-cooldown-num" class="dev-num"
+              min="5" max="120" step="5" value="30"
+              oninput="document.getElementById('dev-cooldown').value=this.value; devOnCooldown()">
+            <span class="dev-unit">s</span>
+          </div>
+        </div>
+
+        <div class="dev-field">
+          <label class="dev-label">Whisper Model</label>
+          <select id="dev-model" class="dev-select" onchange="devOnModel()">
+            <option value="whisper-large-v3-turbo">whisper-large-v3-turbo (fast, default)</option>
+            <option value="whisper-large-v3">whisper-large-v3 (slower, more accurate)</option>
+            <option value="distil-whisper-large-v3-en">distil-whisper-large-v3-en (English only)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Live Stats -->
+      <div class="dev-section">
+        <div class="dev-section-title">Live Stats</div>
+        <div class="dev-stats-grid">
+          <div class="dev-stat">
+            <span class="dev-stat-label">Rolling rate</span>
+            <span class="dev-stat-val" id="dstat-rate">—</span>
+          </div>
+          <div class="dev-stat">
+            <span class="dev-stat-label">Queue depth</span>
+            <span class="dev-stat-val" id="dstat-queue">—</span>
+          </div>
+          <div class="dev-stat">
+            <span class="dev-stat-label">Total sent</span>
+            <span class="dev-stat-val" id="dstat-sent">0</span>
+          </div>
+          <div class="dev-stat">
+            <span class="dev-stat-label">Total chars</span>
+            <span class="dev-stat-val" id="dstat-chars">0</span>
+          </div>
+          <div class="dev-stat">
+            <span class="dev-stat-label">Avg latency</span>
+            <span class="dev-stat-val" id="dstat-latency">—</span>
+          </div>
+          <div class="dev-stat">
+            <span class="dev-stat-label">Last blob</span>
+            <span class="dev-stat-val" id="dstat-blob">—</span>
+          </div>
+          <div class="dev-stat">
+            <span class="dev-stat-label">429 cooldown</span>
+            <span class="dev-stat-val" id="dstat-cooldown">—</span>
+          </div>
+          <div class="dev-stat dev-stat--wide">
+            <span class="dev-stat-label">MIME type</span>
+            <span class="dev-stat-val dev-stat-val--mime" id="dstat-mime">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="dev-section">
+        <div class="dev-section-title">Actions</div>
+        <div class="dev-actions">
+          <button class="dev-btn" onclick="devClearQueue()">Clear Queue</button>
+          <button class="dev-btn" onclick="devForceFlush()">Force Flush</button>
+          <button class="dev-btn dev-btn--warn" onclick="devSimulate429()">Simulate 429</button>
+          <button class="dev-btn" id="dev-copy-btn" onclick="devCopyDebugInfo()">Copy Debug Info</button>
+          <button class="dev-btn" onclick="devDownloadLog()">Download Log (CSV)</button>
+          <button class="dev-btn dev-btn--danger" onclick="devClearLog()">Clear Log</button>
+        </div>
+      </div>
+
+      <!-- Request Log -->
+      <div class="dev-section">
+        <div class="dev-section-title">Request Log (<span id="dev-log-count">0</span>)</div>
+        <div class="dev-log-header">
+          <span>Time</span><span>Latency</span><span>Chars</span><span>Size</span><span>Status</span>
+        </div>
+        <div class="dev-log-body" id="dev-log-entries">
+          <div class="dev-log-empty">No requests yet</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
