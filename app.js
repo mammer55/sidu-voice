@@ -58,7 +58,7 @@ const UI_TEXT = {
     processing:          'Processing…',
     btnRetry:            'Try again',
     transcriptLabel:     'Transcript',
-    transcriptPlaceholder: 'Tap the mic to start — your transcript will appear here',
+    transcriptPlaceholder: 'Transcript will appear here',
     rateBannerPrefix:    'Please wait before continuing... (',
     rateBannerSuffix:    ' s)',
     copyBtn:             'Copy',
