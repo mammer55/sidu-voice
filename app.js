@@ -327,6 +327,9 @@ async function transcribe(isRetry) {
     transcript.value = (data.text || '').trim();
     transcript.dispatchEvent(new Event('input'));
     setState('idle');
+    if (currentLang === 'en' && transcript.value) {
+      navigator.clipboard.writeText(transcript.value).catch(() => {});
+    }
 
   } catch (err) {
     console.error('Transcription error:', err);
