@@ -200,6 +200,7 @@ applyLang();
 let confirmResolver = null;
 
 function confirmOverwriteIfNeeded() {
+  if (currentLang === 'en') return Promise.resolve(true);
   if (!transcript.value.trim()) return Promise.resolve(true);
   return new Promise((resolve) => {
     confirmResolver = resolve;
