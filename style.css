@@ -851,6 +851,33 @@ html, body {
 .dev-log-entry .dev-log-status { color: #3fb950; }
 .dev-log-entry--err .dev-log-status { color: #f85149; }
 
+/* ── LTR / English mode overrides ── */
+html[dir="ltr"],
+html[dir="ltr"] body {
+  direction: ltr;
+}
+
+html[dir="ltr"] .transcript {
+  direction: ltr;
+  text-align: left;
+}
+
+html[dir="ltr"] .letter-inner {
+  text-align: left;
+}
+
+html[dir="ltr"] .contact-widget {
+  display: none;
+}
+
+html[dir="ltr"] .confirm-buttons {
+  flex-direction: row;
+}
+
+html[dir="ltr"] .contact-panel {
+  text-align: left;
+}
+
 /* ── Responsive tweaks ── */
 @media (max-width: 400px) {
   .btn-main { width: 140px; height: 140px; }
