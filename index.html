@@ -17,12 +17,12 @@
   <!-- Overwrite confirmation modal -->
   <div id="confirm-overlay" class="confirm-overlay" hidden>
     <div class="confirm-inner">
-      <div class="confirm-text">
+      <div class="confirm-text" id="confirm-text">
         تحذير: يوجد نص في المربع. هل تريد المتابعة؟ سيتم مسح النص الحالي.
       </div>
       <div class="confirm-buttons">
-        <button class="confirm-btn confirm-btn--cancel" onclick="resolveConfirm(false)">تراجع</button>
-        <button class="confirm-btn confirm-btn--proceed" onclick="resolveConfirm(true)">متابعة</button>
+        <button class="confirm-btn confirm-btn--cancel" id="confirm-cancel" onclick="resolveConfirm(false)">تراجع</button>
+        <button class="confirm-btn confirm-btn--proceed" id="confirm-proceed" onclick="resolveConfirm(true)">متابعة</button>
       </div>
     </div>
   </div>
@@ -30,24 +30,24 @@
   <!-- Letter notification badge — hidden until Mustafa sends a letter via URL ?letter=... -->
   <div id="letter-badge" class="letter-badge" hidden onclick="openLetter()">
     <span>📬</span>
-    <span>رسالة جديدة من مصطفى</span>
+    <span id="letter-badge-text">رسالة جديدة من مصطفى</span>
   </div>
 
   <!-- Letter modal -->
   <div id="letter-panel" class="letter-overlay" hidden>
     <div class="letter-inner">
-      <div class="letter-from">من مصطفى ❤️</div>
+      <div class="letter-from" id="letter-from">من مصطفى ❤️</div>
       <div id="letter-date" class="letter-date"></div>
       <div id="letter-text" class="letter-text"></div>
-      <button class="letter-close" onclick="closeLetter()">حسناً، شكراً</button>
+      <button class="letter-close" id="letter-close" onclick="closeLetter()">حسناً، شكراً</button>
     </div>
   </div>
 
   <!-- Contact widget — fixed bottom right -->
   <div class="contact-widget">
     <div id="contact-panel" class="contact-panel" hidden>
-      <div class="contact-header">📩 راسل مصطفى</div>
-      <p class="contact-desc">
+      <div class="contact-header" id="contact-header">📩 راسل مصطفى</div>
+      <p class="contact-desc" id="contact-desc">
         إذا واجهتك أي مشكلة في التطبيق، اكتب رسالة هنا واضغط «إرسال».
         سيتلقّاها مصطفى ويساعدك في أقرب وقت.
       </p>
@@ -60,7 +60,7 @@
     </div>
     <button class="contact-toggle" onclick="toggleContact()">
       <span>💬</span>
-      <span>مشكلة؟ تواصل مع مصطفى</span>
+      <span id="contact-toggle-text">مشكلة؟ تواصل مع مصطفى</span>
     </button>
   </div>
 
@@ -93,7 +93,7 @@
     <!-- Processing indicator (accurate mode only) -->
     <div class="processing-indicator" id="processing-indicator">
       <div class="spinner"></div>
-      <span>جارٍ المعالجة…</span>
+      <span id="processing-text">جارٍ المعالجة…</span>
     </div>
 
     <!-- Error message -->
@@ -108,7 +108,7 @@
 
     <!-- Transcript area — textarea for accurate, div for live (to show interim) -->
     <div class="transcript-wrapper">
-      <label class="transcript-label" for="transcript">النص المكتوب</label>
+      <label class="transcript-label" id="transcript-label" for="transcript">النص المكتوب</label>
       <textarea
         id="transcript"
         class="transcript"
@@ -118,7 +118,7 @@
       ></textarea>
       <!-- Rate-limit pause banner (continuous mode) -->
       <div id="rate-banner" class="rate-banner" hidden dir="rtl">
-        يرجى الانتظار لحظة قبل المتابعة... (<span id="rate-countdown">0</span> ث)
+        <span id="rate-banner-prefix">يرجى الانتظار لحظة قبل المتابعة... (</span><span id="rate-countdown">0</span><span id="rate-banner-suffix"> ث)</span>
       </div>
     </div>
 

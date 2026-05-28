@@ -13,6 +13,75 @@ let currentMode    = 'accurate'; // 'accurate' | 'live'
 const LS_TEXT_KEY = 'sidu-voice-text';
 const LS_LANG_KEY = 'sidu-voice-lang';
 
+const UI_TEXT = {
+  ar: {
+    pageTitle:           'مسجّل الصوت',
+    appTitle:            'مسجّل الصوت',
+    modeAccurate:        'دقيق ✅',
+    modeLive:            'مستمر 🎙',
+    btnIdle:             'وقف',
+    btnRecording:        'ابدء',
+    btnProcessing:       'انتظر',
+    processing:          'جارٍ المعالجة…',
+    btnRetry:            'حاول مرة أخرى',
+    transcriptLabel:     'النص المكتوب',
+    transcriptPlaceholder: 'سيظهر النص هنا بعد التسجيل…',
+    rateBannerPrefix:    'يرجى الانتظار لحظة قبل المتابعة... (',
+    rateBannerSuffix:    ' ث)',
+    copyBtn:             'انسخ',
+    copiedBtn:           'تم النسخ!',
+    confirmText:         'تحذير: يوجد نص في المربع. هل تريد المتابعة؟ سيتم مسح النص الحالي.',
+    confirmCancel:       'تراجع',
+    confirmProceed:      'متابعة',
+    contactHeader:       '📩 راسل مصطفى',
+    contactDesc:         'إذا واجهتك أي مشكلة في التطبيق، اكتب رسالة هنا واضغط «إرسال». سيتلقّاها مصطفى ويساعدك في أقرب وقت.',
+    contactPlaceholder:  'اكتب رسالتك هنا…',
+    contactSend:         'إرسال',
+    contactSending:      'جارٍ الإرسال…',
+    contactSent:         'تم الإرسال!',
+    contactError:        '❌ لم تصل الرسالة. تحقّق من الإنترنت وحاول مرة أخرى.',
+    contactToggle:       'مشكلة؟ تواصل مع مصطفى',
+    letterBadge:         'رسالة جديدة من مصطفى',
+    letterFrom:          'من مصطفى ❤️',
+    letterClose:         'حسناً، شكراً',
+    errMic:              'لا يمكن الوصول إلى الميكروفون. يرجى السماح بذلك من الإعدادات.',
+    errTranscribe:       'حدث خطأ. اضغط الزر مرة أخرى من فضلك.',
+  },
+  en: {
+    pageTitle:           'Voice Recorder',
+    appTitle:            'Voice Recorder',
+    modeAccurate:        'Accurate ✅',
+    modeLive:            'Live 🎙',
+    btnIdle:             'Stop',
+    btnRecording:        'Start',
+    btnProcessing:       'Wait',
+    processing:          'Processing…',
+    btnRetry:            'Try again',
+    transcriptLabel:     'Transcript',
+    transcriptPlaceholder: 'Text will appear here after recording…',
+    rateBannerPrefix:    'Please wait before continuing... (',
+    rateBannerSuffix:    ' s)',
+    copyBtn:             'Copy',
+    copiedBtn:           'Copied!',
+    confirmText:         'Warning: There is text in the box. Do you want to continue? The current text will be cleared.',
+    confirmCancel:       'Cancel',
+    confirmProceed:      'Continue',
+    contactHeader:       '📩 Message Mustafa',
+    contactDesc:         'If you encounter any issue with the app, write a message here and press "Send". Mustafa will receive it and help you as soon as possible.',
+    contactPlaceholder:  'Write your message here…',
+    contactSend:         'Send',
+    contactSending:      'Sending…',
+    contactSent:         'Sent!',
+    contactError:        '❌ Message not sent. Check your internet connection and try again.',
+    contactToggle:       'Problem? Contact Mustafa',
+    letterBadge:         'New message from Mustafa',
+    letterFrom:          'From Mustafa ❤️',
+    letterClose:         'OK, Thanks',
+    errMic:              'Cannot access the microphone. Please allow it in your settings.',
+    errTranscribe:       'An error occurred. Please press the button again.',
+  },
+};
+
 let currentLang = (() => {
   try { return localStorage.getItem(LS_LANG_KEY) || 'ar'; } catch { return 'ar'; }
 })();
@@ -28,6 +97,75 @@ const copyLabel       = document.getElementById('copy-label');
 const transcript      = document.getElementById('transcript');
 const errorBox        = document.getElementById('error-box');
 const errorText       = document.getElementById('error-text');
+
+// ── Language UI ───────────────────────────────────────────────────────────────
+function applyLang() {
+  const t   = UI_TEXT[currentLang] || UI_TEXT.ar;
+  const isEn = currentLang === 'en';
+  const g   = (id) => document.getElementById(id);
+
+  document.title = t.pageTitle;
+  const metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (metaTitle) metaTitle.content = t.pageTitle;
+
+  document.documentElement.lang = isEn ? 'en' : 'ar';
+  document.documentElement.dir  = isEn ? 'ltr' : 'rtl';
+
+  document.querySelector('.app-title').textContent = t.appTitle;
+  g('mode-accurate').textContent = t.modeAccurate;
+  g('mode-live').textContent     = t.modeLive;
+
+  if (appState === 'idle')           btnLabel.textContent = t.btnIdle;
+  else if (appState === 'recording') btnLabel.textContent = t.btnRecording;
+  else if (appState === 'processing') btnLabel.textContent = t.btnProcessing;
+
+  const procText = g('processing-text');
+  if (procText) procText.textContent = t.processing;
+
+  g('btn-retry').textContent = t.btnRetry;
+
+  const txLabel = g('transcript-label');
+  if (txLabel) txLabel.textContent = t.transcriptLabel;
+
+  transcript.placeholder = t.transcriptPlaceholder;
+  transcript.dir = isEn ? 'ltr' : 'rtl';
+
+  const ratePfx = g('rate-banner-prefix');
+  if (ratePfx) ratePfx.textContent = t.rateBannerPrefix;
+  const rateSfx = g('rate-banner-suffix');
+  if (rateSfx) rateSfx.textContent = t.rateBannerSuffix;
+  const rateBanner = g('rate-banner');
+  if (rateBanner) rateBanner.dir = isEn ? 'ltr' : 'rtl';
+
+  copyLabel.textContent = t.copyBtn;
+
+  const confirmTextEl = g('confirm-text');
+  if (confirmTextEl) confirmTextEl.textContent = t.confirmText;
+  const confirmCancelEl = g('confirm-cancel');
+  if (confirmCancelEl) confirmCancelEl.textContent = t.confirmCancel;
+  const confirmProceedEl = g('confirm-proceed');
+  if (confirmProceedEl) confirmProceedEl.textContent = t.confirmProceed;
+
+  const contactHdr = g('contact-header');
+  if (contactHdr) contactHdr.textContent = t.contactHeader;
+  const contactDsc = g('contact-desc');
+  if (contactDsc) contactDsc.textContent = t.contactDesc;
+  const contactMsg = g('contact-msg');
+  if (contactMsg) { contactMsg.placeholder = t.contactPlaceholder; contactMsg.dir = isEn ? 'ltr' : 'rtl'; }
+  const contactSendBtn = g('contact-send');
+  if (contactSendBtn && !contactSendBtn.disabled) contactSendBtn.textContent = t.contactSend;
+  const contactErrEl = g('contact-error');
+  if (contactErrEl) contactErrEl.textContent = t.contactError;
+  const contactToggleText = g('contact-toggle-text');
+  if (contactToggleText) contactToggleText.textContent = t.contactToggle;
+
+  const letterBadgeText = g('letter-badge-text');
+  if (letterBadgeText) letterBadgeText.textContent = t.letterBadge;
+  const letterFromEl = g('letter-from');
+  if (letterFromEl) letterFromEl.textContent = t.letterFrom;
+  const letterCloseEl = g('letter-close');
+  if (letterCloseEl) letterCloseEl.textContent = t.letterClose;
+}
 
 // ── Mode toggle ───────────────────────────────────────────────────────────────
 function setMode(mode) {
@@ -57,6 +195,7 @@ function saveText() {
 
 transcript.addEventListener('input', saveText);
 loadSavedText();
+applyLang();
 
 // ── Overwrite confirmation ────────────────────────────────────────────────────
 let confirmResolver = null;
@@ -83,17 +222,18 @@ function setState(s) {
   appState = s;
   body.dataset.state = s;
 
+  const t = UI_TEXT[currentLang] || UI_TEXT.ar;
   if (s === 'idle') {
     btnIcon.textContent  = '🎙️';
-    btnLabel.textContent = 'وقف';
+    btnLabel.textContent = t.btnIdle;
     btnRecord.disabled   = false;
   } else if (s === 'recording') {
     btnIcon.textContent  = '⏹';
-    btnLabel.textContent = 'ابدء';
+    btnLabel.textContent = t.btnRecording;
     btnRecord.disabled   = false;
   } else if (s === 'processing') {
     btnIcon.textContent  = '⏳';
-    btnLabel.textContent = 'انتظر';
+    btnLabel.textContent = t.btnProcessing;
     btnRecord.disabled   = true;
   }
 }
@@ -132,7 +272,7 @@ async function startRecording() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch {
-    showError('لا يمكن الوصول إلى الميكروفون. يرجى السماح بذلك من الإعدادات.');
+    showError((UI_TEXT[currentLang] || UI_TEXT.ar).errMic);
     return;
   }
 
@@ -196,7 +336,7 @@ async function transcribe(isRetry) {
       setTimeout(() => transcribe(true), 3000);
     } else {
       setState('idle');
-      showError('حدث خطأ. اضغط الزر مرة أخرى من فضلك.');
+      showError((UI_TEXT[currentLang] || UI_TEXT.ar).errTranscribe);
       showRetry();
       alertMustafa(err);
     }
@@ -248,7 +388,7 @@ async function startContinuous() {
   try {
     continuousStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch {
-    showError('لا يمكن الوصول إلى الميكروفون. يرجى السماح بذلك من الإعدادات.');
+    showError((UI_TEXT[currentLang] || UI_TEXT.ar).errMic);
     return;
   }
 
@@ -435,11 +575,12 @@ async function copyTranscript() {
     document.execCommand('copy');
   }
 
+  const ct = UI_TEXT[currentLang] || UI_TEXT.ar;
   btnCopy.classList.add('copied');
-  copyLabel.textContent = 'تم النسخ!';
+  copyLabel.textContent = ct.copiedBtn;
   setTimeout(() => {
     btnCopy.classList.remove('copied');
-    copyLabel.textContent = 'انسخ';
+    copyLabel.textContent = ct.copyBtn;
   }, 2000);
 }
 
@@ -522,8 +663,9 @@ async function sendMessage() {
   const text    = msgEl.value.trim();
   if (!text) return;
 
+  const st = UI_TEXT[currentLang] || UI_TEXT.ar;
   sendBtn.disabled    = true;
-  sendBtn.textContent = 'جارٍ الإرسال…';
+  sendBtn.textContent = st.contactSending;
 
   let succeeded = false;
   try {
@@ -538,15 +680,15 @@ async function sendMessage() {
   }
 
   sendBtn.disabled    = false;
-  sendBtn.textContent = 'إرسال';
+  sendBtn.textContent = st.contactSend;
 
   if (succeeded) {
     msgEl.value = '';
     contactOpen = false;
     document.getElementById('contact-panel').hidden = true;
-    toggleBtn.innerHTML = '<span>✅</span><span>تم الإرسال!</span>';
+    toggleBtn.innerHTML = `<span>✅</span><span id="contact-toggle-text">${st.contactSent}</span>`;
     setTimeout(() => {
-      toggleBtn.innerHTML = '<span>💬</span><span>مشكلة؟ تواصل مع مصطفى</span>';
+      toggleBtn.innerHTML = `<span>💬</span><span id="contact-toggle-text">${st.contactToggle}</span>`;
     }, 4000);
   } else {
     const errEl = document.getElementById('contact-error');
@@ -595,6 +737,7 @@ function closeLetter() {
 function toggleLanguage() {
   currentLang = currentLang === 'ar' ? 'en' : 'ar';
   try { localStorage.setItem(LS_LANG_KEY, currentLang); } catch { /* silent */ }
+  applyLang();
   flashLangToast(currentLang === 'en' ? 'English mode' : 'الوضع العربي');
 }
 
