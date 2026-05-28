@@ -1,7 +1,6 @@
 'use strict';
 
-const GROQ_API_KEY    = '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';
-const GROQ_URL        = 'https://api.groq.com/openai/v1/audio/transcriptions';
+const GROQ_URL        = 'https://sido-voice.mammergaming55.workers.dev';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynRnOepcTh1LnJATtqS1Jb-3gSitCUXBNrVrtwUoCrh03KXxIf36MULAI0lOAhjvKa/exec';
 
 let mediaRecorder  = null;
@@ -316,7 +315,6 @@ async function transcribe(isRetry) {
 
     const res = await fetch(GROQ_URL, {
       method:  'POST',
-      headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` },
       body:    formData,
     });
 
@@ -502,7 +500,6 @@ async function transcribeChunk(blob) {
 
   const res = await fetch(GROQ_URL, {
     method:  'POST',
-    headers: { 'Authorization': `Bearer ${GROQ_API_KEY}` },
     body:    formData,
   });
 
@@ -605,7 +602,7 @@ async function alertMustafa(err) {
       `Error: ${err.message}`,
       `Time: ${new Date().toISOString()}`,
       `UserAgent: ${navigator.userAgent}`,
-      `Key prefix: ${GROQ_API_KEY.slice(0, 8)}...`,
+      `Proxy: ${GROQ_URL}`,
     ].join('\n');
     await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
