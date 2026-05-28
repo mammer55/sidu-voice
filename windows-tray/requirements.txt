@@ -1,0 +1,8 @@
+sounddevice
+soundfile
+requests
+pyperclip
+pystray
+Pillow
+winotify
+numpy
