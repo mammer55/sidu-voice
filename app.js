@@ -114,8 +114,10 @@ function applyLang() {
   g('mode-accurate').textContent = t.modeAccurate;
   g('mode-live').textContent     = t.modeLive;
 
-  if (appState === 'idle')           btnLabel.textContent = t.btnIdle;
-  else if (appState === 'recording') btnLabel.textContent = t.btnRecording;
+  if (currentLang === 'en') setMode('accurate');
+
+  if (appState === 'idle')            btnLabel.textContent = t.btnIdle;
+  else if (appState === 'recording')  btnLabel.textContent = t.btnRecording;
   else if (appState === 'processing') btnLabel.textContent = t.btnProcessing;
 
   const procText = g('processing-text');
