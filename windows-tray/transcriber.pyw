@@ -43,18 +43,30 @@ def _make_icon(state='idle'):
 # ── Toast notification ─────────────────────────────────────────────────────────
 
 def _notify(text):
-    try:
-        from winotify import Notification, audio as wa
-        toast = Notification(
-            app_id='Voice Transcriber',
-            title='Transcribed',
-            msg=text[:120],
-            duration='short',
-        )
-        toast.set_audio(wa.Silent, loop=False)
-        toast.show()
-    except Exception:
-        pass
+    def _show():
+        toast = tk.Toplevel(_root)
+        toast.overrideredirect(True)
+        toast.attributes('-topmost', True)
+        toast.configure(bg='#1c1c1e')
+
+        preview = text[:90] + ('...' if len(text) > 90 else '')
+
+        tk.Label(toast, text='Transcribed', font=('Segoe UI', 10, 'bold'),
+                 fg='#1a7a6e', bg='#1c1c1e').pack(anchor='w', padx=14, pady=(12, 2))
+        tk.Label(toast, text=preview, font=('Segoe UI', 10),
+                 fg='white', bg='#1c1c1e', wraplength=280,
+                 justify='left').pack(anchor='w', padx=14, pady=(0, 12))
+
+        toast.update_idletasks()
+        sw = toast.winfo_screenwidth()
+        sh = toast.winfo_screenheight()
+        w  = toast.winfo_width()
+        h  = toast.winfo_height()
+        toast.geometry(f'{w}x{h}+{sw - w - 20}+{sh - h - 60}')
+
+        toast.after(4000, toast.destroy)
+
+    _root.after(0, _show)
 
 
 # ── Recording dialog ───────────────────────────────────────────────────────────
