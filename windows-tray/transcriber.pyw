@@ -43,6 +43,7 @@ _stream       = None
 _icon         = None
 _root         = None
 _dialog       = None
+_push_dialog  = None
 _auto_mode    = False
 _last_seen_id = None
 _poll_stop    = threading.Event()
@@ -94,6 +95,7 @@ def _notify(text, source='recorded'):
         tag, color = {
             'recorded': ('Recorded on PC',       GREEN),
             'fetched':  ('Received from iPhone', BLUE),
+            'sent':     ('Sent to iPhone',       GREEN),
             'nothing':  ('Nothing new',          MUTED),
         }.get(source, ('Done', GREEN))
 
@@ -252,6 +254,7 @@ def _transcribe(audio):
             text = res.json().get('text', '').strip()
             if text:
                 pyperclip.copy(text)
+                _push_supabase(text)   # makes it fetchable on iPhone
                 _notify(text, source='recorded')
             else:
                 _notify('', source='nothing')
@@ -283,6 +286,24 @@ def _fetch_supabase():
     except Exception:
         pass
     return None, None
+
+
+def _push_supabase(content):
+    """Push content to Supabase clips table. Returns True on success."""
+    try:
+        expires_at = time.strftime('%Y-%m-%dT%H:%M:%SZ',
+                                   time.gmtime(time.time() + 24 * 3600))
+        res = requests.post(
+            f'{SUPA_URL}/rest/v1/clips',
+            headers={**SUPA_HEADERS,
+                     'Content-Type': 'application/json',
+                     'Prefer': 'return=minimal'},
+            json={'content': content, 'expires_at': expires_at},
+            timeout=10,
+        )
+        return res.ok
+    except Exception:
+        return False
 
 
 def _fetch_now(icon=None, item=None):
@@ -324,6 +345,94 @@ def _toggle_auto(icon=None, item=None):
         _icon.icon = _make_icon('idle')
 
 
+# ── Send to iPhone dialog ──────────────────────────────────────────────────────
+
+def _show_push_dialog():
+    global _push_dialog
+    if _push_dialog:
+        try:
+            _push_dialog.lift()
+        except Exception:
+            pass
+        return
+
+    _push_dialog = tk.Toplevel(_root)
+    w = _push_dialog
+    w.overrideredirect(True)
+    w.attributes('-topmost', True)
+    w.configure(bg=BG)
+
+    sw = w.winfo_screenwidth()
+    sh = w.winfo_screenheight()
+    W, H = 300, 190
+    w.geometry(f'{W}x{H}+{(sw - W) // 2}+{(sh - H) // 2}')
+
+    # Blue accent bar
+    tk.Frame(w, bg=BLUE, height=3).pack(fill='x')
+
+    body = tk.Frame(w, bg=BG, padx=14, pady=10)
+    body.pack(fill='both', expand=True)
+
+    # Header
+    hdr = tk.Frame(body, bg=BG)
+    hdr.pack(fill='x', pady=(0, 8))
+    tk.Label(hdr, text='Send to iPhone', font=('Segoe UI', 10, 'bold'),
+             fg=BLUE, bg=BG).pack(side='left')
+    x = tk.Label(hdr, text='✕', font=('Segoe UI', 10),
+                 fg=MUTED, bg=BG, cursor='hand2')
+    x.pack(side='right')
+    x.bind('<Button-1>', lambda e: _close_push_dialog())
+
+    # Text area
+    txt = tk.Text(w, font=('Segoe UI', 10), bg=SURFACE, fg=WHITE,
+                  relief='flat', wrap='word', insertbackground=WHITE,
+                  height=5, bd=0, padx=8, pady=6,
+                  highlightthickness=1, highlightbackground=SURFACE,
+                  highlightcolor=BLUE)
+    txt.pack(fill='both', expand=True, padx=14, pady=(0, 8))
+    txt.focus_set()
+
+    # Buttons
+    btn_row = tk.Frame(body, bg=BG)
+    btn_row.pack(fill='x')
+
+    def _do_send():
+        text = txt.get('1.0', 'end').strip()
+        if not text:
+            return
+        _close_push_dialog()
+        def _run():
+            ok = _push_supabase(text)
+            _notify(text if ok else 'Push failed', source='sent' if ok else 'nothing')
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _do_paste():
+        try:
+            txt.delete('1.0', 'end')
+            txt.insert('1.0', pyperclip.paste())
+        except Exception:
+            pass
+
+    tk.Button(btn_row, text='Paste', font=('Segoe UI', 9),
+              bg=SURFACE, fg=WHITE, relief='flat', bd=0,
+              cursor='hand2', padx=10, pady=4,
+              command=_do_paste).pack(side='left')
+    tk.Button(btn_row, text='Send', font=('Segoe UI', 9, 'bold'),
+              bg=BLUE, fg=WHITE, relief='flat', bd=0,
+              cursor='hand2', padx=16, pady=4,
+              command=_do_send).pack(side='right')
+
+    w.bind('<Return>', lambda e: _do_send())
+    w.protocol('WM_DELETE_WINDOW', _close_push_dialog)
+
+
+def _close_push_dialog():
+    global _push_dialog
+    if _push_dialog:
+        _safe_destroy(_push_dialog)
+        _push_dialog = None
+
+
 # ── Tray ───────────────────────────────────────────────────────────────────────
 
 def _on_click(icon=None, item=None):
@@ -353,6 +462,7 @@ _icon = Icon(
         MenuItem('Start Recording', _on_click, default=True),
         MenuItem(lambda item: f'Auto: {"ON  " if _auto_mode else "OFF"}', _toggle_auto),
         MenuItem('Fetch Now', _fetch_now),
+        MenuItem('Send to iPhone', lambda icon, item: _root.after(0, _show_push_dialog)),
         Menu.SEPARATOR,
         MenuItem('Quit', _on_quit),
     ),
