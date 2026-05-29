@@ -1,38 +1,61 @@
 """
-Voice Transcriber - Windows system tray app
-Left-click the tray icon to start recording.
-A small window appears with a Stop button.
-Click Stop -> transcript is copied to clipboard + toast notification appears.
+Voice Transcriber + Clip Bridge — Windows system tray app
+
+Left-click  : start recording  (dialog appears)
+              click Stop       -> transcribe -> clipboard + notification
+Right-click : Auto ON/OFF      -> polls iPhone clips every 4s
+              Fetch Now        -> one-shot fetch from iPhone
+              Quit
 """
-import io
-import threading
+import io, time, threading
 import tkinter as tk
-import requests
-import pyperclip
-import numpy as np
-import sounddevice as sd
-import soundfile as sf
+import requests, pyperclip, numpy as np
+import sounddevice as sd, soundfile as sf
 from pystray import Icon, Menu, MenuItem
 from PIL import Image, ImageDraw
 
-WORKER_URL = 'https://sido-voice.mammergaming55.workers.dev'
-SAMPLERATE = 16000
+# ── Config ─────────────────────────────────────────────────────────────────────
+WORKER_URL   = 'https://sido-voice.mammergaming55.workers.dev'
+SUPA_URL     = 'https://owcukwsouruowulhohyq.supabase.co'
+SUPA_ANON    = ('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+                '.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93Y3'
+                'Vrd3NvdXJ1b3d1bGhvaHlxIiwicm9sZSI6ImFub24'
+                'iLCJpYXQiOjE3NzE5ODgzNzMsImV4cCI6MjA4NzU2'
+                'NDM3M30.3njPBQGD1LEQc-h_j4VhAhngNzEH2p2gpqtRplqan_E')
+SUPA_HEADERS = {'apikey': SUPA_ANON, 'Authorization': f'Bearer {SUPA_ANON}'}
+SAMPLERATE   = 16000
+POLL_SEC     = 4
 
-_recording  = False
-_audio_data = []
-_stream     = None
-_icon       = None
-_root       = None
-_dialog     = None
+# ── Palette ────────────────────────────────────────────────────────────────────
+BG      = '#1c1c1e'
+SURFACE = '#2c2c2e'
+WHITE   = '#ffffff'
+MUTED   = '#8e8e93'
+GREEN   = '#30d158'
+RED     = '#ff453a'
+ORANGE  = '#ff9f0a'
+BLUE    = '#0a84ff'
+
+# ── State ──────────────────────────────────────────────────────────────────────
+_recording    = False
+_audio_data   = []
+_stream       = None
+_icon         = None
+_root         = None
+_dialog       = None
+_auto_mode    = False
+_last_seen_id = None
+_poll_stop    = threading.Event()
 
 
 # ── Tray icon ──────────────────────────────────────────────────────────────────
 
 def _make_icon(state='idle'):
-    colors = {'idle': '#1a7a6e', 'recording': '#c0392b', 'processing': '#e67e22'}
+    color = {'idle': '#1a7a6e', 'recording': '#c0392b',
+             'processing': '#e67e22', 'auto': '#0a6ebd'}[state]
     img = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
     d   = ImageDraw.Draw(img)
-    d.ellipse([2, 2, 62, 62], fill=colors.get(state, '#1a7a6e'))
+    d.ellipse([2, 2, 62, 62], fill=color)
     d.ellipse([22, 10, 42, 36], fill='white')
     d.rectangle([29, 36, 35, 46], fill='white')
     d.arc([18, 26, 46, 50], 0, 180, fill='white', width=3)
@@ -40,31 +63,70 @@ def _make_icon(state='idle'):
     return img
 
 
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _safe_destroy(w):
+    try:
+        w.destroy()
+    except Exception:
+        pass
+
+def _idle_icon():
+    return _make_icon('auto' if _auto_mode else 'idle')
+
+
 # ── Toast notification ─────────────────────────────────────────────────────────
 
-def _notify(text):
+def _notify(text, source='recorded'):
+    """
+    source: 'recorded'  - transcribed on this PC
+            'fetched'   - received from iPhone
+            'nothing'   - nothing new found
+    """
     def _show():
+        W = 300
+
         toast = tk.Toplevel(_root)
         toast.overrideredirect(True)
         toast.attributes('-topmost', True)
-        toast.configure(bg='#1c1c1e')
+        toast.configure(bg=BG)
 
-        preview = text[:90] + ('...' if len(text) > 90 else '')
+        tag, color = {
+            'recorded': ('Recorded on PC',       GREEN),
+            'fetched':  ('Received from iPhone', BLUE),
+            'nothing':  ('Nothing new',          MUTED),
+        }.get(source, ('Done', GREEN))
 
-        tk.Label(toast, text='Transcribed', font=('Segoe UI', 10, 'bold'),
-                 fg='#1a7a6e', bg='#1c1c1e').pack(anchor='w', padx=14, pady=(12, 2))
-        tk.Label(toast, text=preview, font=('Segoe UI', 10),
-                 fg='white', bg='#1c1c1e', wraplength=280,
-                 justify='left').pack(anchor='w', padx=14, pady=(0, 12))
+        # Accent bar
+        tk.Frame(toast, bg=color, height=3).pack(fill='x')
+
+        body = tk.Frame(toast, bg=BG, padx=14, pady=10)
+        body.pack(fill='both', expand=True)
+
+        # Header: label + dismiss
+        row = tk.Frame(body, bg=BG)
+        row.pack(fill='x', pady=(0, 5))
+        tk.Label(row, text=tag, font=('Segoe UI', 9, 'bold'),
+                 fg=color, bg=BG).pack(side='left')
+        x_btn = tk.Label(row, text='✕', font=('Segoe UI', 9),
+                         fg=MUTED, bg=BG, cursor='hand2')
+        x_btn.pack(side='right')
+
+        # Preview
+        if text:
+            preview = text[:100] + ('...' if len(text) > 100 else '')
+            tk.Label(body, text=preview, font=('Segoe UI', 10),
+                     fg=WHITE, bg=BG, wraplength=W - 32,
+                     justify='left').pack(anchor='w')
 
         toast.update_idletasks()
         sw = toast.winfo_screenwidth()
         sh = toast.winfo_screenheight()
-        w  = toast.winfo_width()
         h  = toast.winfo_height()
-        toast.geometry(f'{w}x{h}+{sw - w - 20}+{sh - h - 60}')
+        toast.geometry(f'{W}x{h}+{sw - W - 14}+{sh - h - 54}')
 
-        toast.after(4000, toast.destroy)
+        x_btn.bind('<Button-1>', lambda e: _safe_destroy(toast))
+        toast.after(4500, lambda: _safe_destroy(toast))
 
     _root.after(0, _show)
 
@@ -75,36 +137,70 @@ def _show_dialog():
     global _dialog
     if _dialog:
         return
+
     _dialog = tk.Toplevel(_root)
     w = _dialog
-    w.title('Voice Transcriber')
-    w.resizable(False, False)
+    w.overrideredirect(True)
     w.attributes('-topmost', True)
-    w.configure(bg='#1c1c1e')
+    w.configure(bg=BG)
+
     sw = w.winfo_screenwidth()
-    w.geometry(f'220x96+{sw - 244}+64')
-    tk.Label(w, text='Recording...', font=('Segoe UI', 13),
-             fg='#ff6b6b', bg='#1c1c1e').pack(pady=(16, 8))
-    tk.Button(w, text='   Stop   ', font=('Segoe UI', 11, 'bold'),
-              bg='#c0392b', fg='white', relief='flat',
-              cursor='hand2', pady=4,
-              command=_on_stop_clicked).pack()
+    w.geometry(f'230x108+{sw - 246}+20')
+
+    # Red accent bar
+    tk.Frame(w, bg=RED, height=3).pack(fill='x')
+
+    body = tk.Frame(w, bg=BG, padx=16, pady=10)
+    body.pack(fill='both', expand=True)
+
+    # Top row: pulsing dot + label + timer
+    top = tk.Frame(body, bg=BG)
+    top.pack(fill='x', pady=(0, 9))
+
+    dot = tk.Canvas(top, width=10, height=10, bg=BG, highlightthickness=0)
+    dot.pack(side='left', padx=(0, 8), pady=2)
+    dot_id = dot.create_oval(1, 1, 9, 9, fill=RED, outline='')
+
+    tk.Label(top, text='Recording', font=('Segoe UI', 11, 'bold'),
+             fg=WHITE, bg=BG).pack(side='left')
+
+    timer_var = tk.StringVar(value='0:00')
+    tk.Label(top, textvariable=timer_var, font=('Segoe UI', 9),
+             fg=MUTED, bg=BG).pack(side='right')
+
+    # Stop button
+    tk.Button(body, text='Stop', font=('Segoe UI', 10, 'bold'),
+              bg=RED, fg=WHITE, relief='flat', activebackground='#cc2200',
+              activeforeground=WHITE, cursor='hand2', pady=5, bd=0,
+              command=_on_stop_clicked).pack(fill='x')
+
+    # Pulse dot + tick timer
+    t0 = time.time()
+    vis = [True]
+
+    def _tick():
+        if not _dialog:
+            return
+        vis[0] = not vis[0]
+        dot.itemconfig(dot_id, fill=RED if vis[0] else BG)
+        elapsed = int(time.time() - t0)
+        timer_var.set(f'{elapsed // 60}:{elapsed % 60:02d}')
+        w.after(500, _tick)
+
+    _tick()
     w.protocol('WM_DELETE_WINDOW', _on_stop_clicked)
 
 
 def _close_dialog():
     global _dialog
     if _dialog:
-        try:
-            _dialog.destroy()
-        except Exception:
-            pass
+        _safe_destroy(_dialog)
         _dialog = None
 
 
-# ── Audio recording ────────────────────────────────────────────────────────────
+# ── Audio ──────────────────────────────────────────────────────────────────────
 
-def _audio_callback(indata, frames, time, status):
+def _audio_callback(indata, frames, time_info, status):
     if _recording:
         _audio_data.append(indata.copy())
 
@@ -113,10 +209,8 @@ def _start():
     global _recording, _audio_data, _stream
     _recording  = True
     _audio_data = []
-    _stream = sd.InputStream(
-        samplerate=SAMPLERATE, channels=1,
-        dtype='float32', callback=_audio_callback,
-    )
+    _stream = sd.InputStream(samplerate=SAMPLERATE, channels=1,
+                              dtype='float32', callback=_audio_callback)
     _stream.start()
     _icon.icon = _make_icon('recording')
 
@@ -140,10 +234,8 @@ def _on_stop_clicked():
         data = np.concatenate(_audio_data, axis=0)
         threading.Thread(target=_transcribe, args=(data,), daemon=True).start()
     else:
-        _icon.icon = _make_icon('idle')
+        _icon.icon = _idle_icon()
 
-
-# ── Transcription ──────────────────────────────────────────────────────────────
 
 def _transcribe(audio):
     buf = io.BytesIO()
@@ -160,34 +252,98 @@ def _transcribe(audio):
             text = res.json().get('text', '').strip()
             if text:
                 pyperclip.copy(text)
-                _notify(text)
+                _notify(text, source='recorded')
+            else:
+                _notify('', source='nothing')
         else:
-            _notify(f'Error {res.status_code}: check the Worker logs')
+            _notify(f'Error {res.status_code}', source='nothing')
     except Exception as e:
-        _notify(f'Failed: {e}')
+        _notify(str(e), source='nothing')
     finally:
+        _icon.icon = _idle_icon()
+
+
+# ── Supabase ───────────────────────────────────────────────────────────────────
+
+def _fetch_supabase():
+    """Returns (id, content) or (None, None)."""
+    try:
+        now = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+        res = requests.get(
+            f'{SUPA_URL}/rest/v1/clips',
+            headers=SUPA_HEADERS,
+            params={'select': 'id,content', 'expires_at': f'gt.{now}',
+                    'order': 'created_at.desc', 'limit': '1'},
+            timeout=10,
+        )
+        if res.ok:
+            data = res.json()
+            if data:
+                return data[0]['id'], data[0]['content']
+    except Exception:
+        pass
+    return None, None
+
+
+def _fetch_now(icon=None, item=None):
+    def _run():
+        global _last_seen_id
+        row_id, content = _fetch_supabase()
+        if content:
+            _last_seen_id = row_id
+            pyperclip.copy(content)
+            _notify(content, source='fetched')
+        else:
+            _notify('', source='nothing')
+    threading.Thread(target=_run, daemon=True).start()
+
+
+# ── Auto polling ───────────────────────────────────────────────────────────────
+
+def _poll_loop():
+    global _last_seen_id
+    while not _poll_stop.is_set():
+        row_id, content = _fetch_supabase()
+        if content and row_id != _last_seen_id:
+            _last_seen_id = row_id
+            pyperclip.copy(content)
+            _notify(content, source='fetched')
+        _poll_stop.wait(POLL_SEC)
+
+
+def _toggle_auto(icon=None, item=None):
+    global _auto_mode, _poll_stop
+    _auto_mode = not _auto_mode
+    if _auto_mode:
+        _poll_stop = threading.Event()
+        # _poll_loop fetches immediately on first iteration before waiting
+        threading.Thread(target=_poll_loop, daemon=True).start()
+        _icon.icon = _make_icon('auto')
+    else:
+        _poll_stop.set()
         _icon.icon = _make_icon('idle')
 
 
-# ── Tray click / menu ──────────────────────────────────────────────────────────
+# ── Tray ───────────────────────────────────────────────────────────────────────
 
-def _on_click(icon, item=None):
+def _on_click(icon=None, item=None):
     if not _recording:
         _start()
         _root.after(0, _show_dialog)
 
 
-def _on_quit(icon, item):
+def _on_quit(icon=None, item=None):
     if _recording:
         _stop()
-    icon.stop()
+    _poll_stop.set()
+    _icon.stop()
     _root.quit()
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 _root = tk.Tk()
-_root.withdraw()  # keep root window hidden
+_root.withdraw()
 
 _icon = Icon(
     'VoiceTranscriber',
@@ -195,6 +351,9 @@ _icon = Icon(
     'Voice Transcriber',
     menu=Menu(
         MenuItem('Start Recording', _on_click, default=True),
+        MenuItem(lambda item: f'Auto: {"ON  " if _auto_mode else "OFF"}', _toggle_auto),
+        MenuItem('Fetch Now', _fetch_now),
+        Menu.SEPARATOR,
         MenuItem('Quit', _on_quit),
     ),
 )
