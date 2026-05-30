@@ -266,7 +266,9 @@ def _fetch_supabase():
         res = requests.get(
             f'{SUPA_URL}/rest/v1/clips',
             headers=SUPA_HEADERS,
-            params={'select': 'id,content', 'expires_at': f'gt.{now}',
+            params={'select': 'id,content',
+                    'or': '(source.is.null,source.eq.mac-to-pc,source.eq.ios)',
+                    'expires_at': f'gt.{now}',
                     'order': 'created_at.desc', 'limit': '1'},
             timeout=10,
         )
