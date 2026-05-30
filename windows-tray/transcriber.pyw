@@ -46,7 +46,7 @@ _icon         = None
 _root         = None
 _dialog       = None
 _push_dialog  = None
-_auto_mode    = False
+_auto_mode    = True
 _last_seen_id = None
 _poll_stop    = threading.Event()
 
@@ -448,7 +448,7 @@ _root.withdraw()
 
 _icon = Icon(
     'VoiceTranscriber',
-    _make_icon('idle'),
+    _make_icon('auto'),
     'Voice Transcriber',
     menu=Menu(
         MenuItem('Start Recording', _on_click, default=True),
@@ -466,4 +466,5 @@ _icon = Icon(
 )
 
 threading.Thread(target=_icon.run, daemon=True).start()
+threading.Thread(target=_poll_loop, daemon=True).start()
 _root.mainloop()
