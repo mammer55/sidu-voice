@@ -298,7 +298,7 @@ def _push_supabase(content):
             headers={**SUPA_HEADERS,
                      'Content-Type': 'application/json',
                      'Prefer': 'return=minimal'},
-            json={'content': content, 'expires_at': expires_at},
+            json={'content': content, 'expires_at': expires_at, 'source': 'pc'},
             timeout=10,
         )
         return res.ok
