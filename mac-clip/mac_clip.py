@@ -115,6 +115,11 @@ class ClipListener(rumps.App):
         threading.Thread(target=_run, daemon=True).start()
 
     def _send_to_pc(self, _):
+        try:
+            from AppKit import NSApp
+            NSApp.activateIgnoringOtherApps_(True)
+        except Exception:
+            pass
         win = rumps.Window(
             message='',
             title='Send to PC',
