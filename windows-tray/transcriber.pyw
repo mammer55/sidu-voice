@@ -5,6 +5,8 @@ Left-click  : start recording  (dialog appears)
               click Stop       -> transcribe -> clipboard + notification
 Right-click : Auto ON/OFF      -> polls iPhone clips every 4s
               Fetch Now        -> one-shot fetch from iPhone
+              Send to iPhone   -> push text to iPhone clipboard
+              Send to Mac      -> push text to Mac clipboard
               Quit
 """
 import io, time, threading
@@ -79,11 +81,6 @@ def _idle_icon():
 # ── Toast notification ─────────────────────────────────────────────────────────
 
 def _notify(text, source='recorded'):
-    """
-    source: 'recorded'  - transcribed on this PC
-            'fetched'   - received from iPhone
-            'nothing'   - nothing new found
-    """
     def _show():
         W = 300
 
@@ -93,19 +90,18 @@ def _notify(text, source='recorded'):
         toast.configure(bg=BG)
 
         tag, color = {
-            'recorded': ('Recorded on PC',       GREEN),
-            'fetched':  ('Received from iPhone', BLUE),
-            'sent':     ('Sent to iPhone',       GREEN),
-            'nothing':  ('Nothing new',          MUTED),
+            'recorded':  ('Recorded on PC',       GREEN),
+            'fetched':   ('Received from iPhone',  BLUE),
+            'sent':      ('Sent to iPhone',        BLUE),
+            'sent-mac':  ('Sent to Mac',           ORANGE),
+            'nothing':   ('Nothing new',           MUTED),
         }.get(source, ('Done', GREEN))
 
-        # Accent bar
         tk.Frame(toast, bg=color, height=3).pack(fill='x')
 
         body = tk.Frame(toast, bg=BG, padx=14, pady=10)
         body.pack(fill='both', expand=True)
 
-        # Header: label + dismiss
         row = tk.Frame(body, bg=BG)
         row.pack(fill='x', pady=(0, 5))
         tk.Label(row, text=tag, font=('Segoe UI', 9, 'bold'),
@@ -114,7 +110,6 @@ def _notify(text, source='recorded'):
                          fg=MUTED, bg=BG, cursor='hand2')
         x_btn.pack(side='right')
 
-        # Preview
         if text:
             preview = text[:100] + ('...' if len(text) > 100 else '')
             tk.Label(body, text=preview, font=('Segoe UI', 10),
@@ -149,13 +144,11 @@ def _show_dialog():
     sw = w.winfo_screenwidth()
     w.geometry(f'230x108+{sw - 246}+20')
 
-    # Red accent bar
     tk.Frame(w, bg=RED, height=3).pack(fill='x')
 
     body = tk.Frame(w, bg=BG, padx=16, pady=10)
     body.pack(fill='both', expand=True)
 
-    # Top row: pulsing dot + label + timer
     top = tk.Frame(body, bg=BG)
     top.pack(fill='x', pady=(0, 9))
 
@@ -170,13 +163,11 @@ def _show_dialog():
     tk.Label(top, textvariable=timer_var, font=('Segoe UI', 9),
              fg=MUTED, bg=BG).pack(side='right')
 
-    # Stop button
     tk.Button(body, text='Stop', font=('Segoe UI', 10, 'bold'),
               bg=RED, fg=WHITE, relief='flat', activebackground='#cc2200',
               activeforeground=WHITE, cursor='hand2', pady=5, bd=0,
               command=_on_stop_clicked).pack(fill='x')
 
-    # Pulse dot + tick timer
     t0 = time.time()
     vis = [True]
 
@@ -254,7 +245,7 @@ def _transcribe(audio):
             text = res.json().get('text', '').strip()
             if text:
                 pyperclip.copy(text)
-                _push_supabase(text)   # makes it fetchable on iPhone
+                _push_supabase(text)
                 _notify(text, source='recorded')
             else:
                 _notify('', source='nothing')
@@ -288,7 +279,7 @@ def _fetch_supabase():
     return None, None
 
 
-def _push_supabase(content):
+def _push_supabase(content, source='pc'):
     """Push content to Supabase clips table. Returns True on success."""
     try:
         expires_at = time.strftime('%Y-%m-%dT%H:%M:%SZ',
@@ -298,7 +289,7 @@ def _push_supabase(content):
             headers={**SUPA_HEADERS,
                      'Content-Type': 'application/json',
                      'Prefer': 'return=minimal'},
-            json={'content': content, 'expires_at': expires_at, 'source': 'pc'},
+            json={'content': content, 'expires_at': expires_at, 'source': source},
             timeout=10,
         )
         return res.ok
@@ -337,7 +328,6 @@ def _toggle_auto(icon=None, item=None):
     _auto_mode = not _auto_mode
     if _auto_mode:
         _poll_stop = threading.Event()
-        # _poll_loop fetches immediately on first iteration before waiting
         threading.Thread(target=_poll_loop, daemon=True).start()
         _icon.icon = _make_icon('auto')
     else:
@@ -345,9 +335,9 @@ def _toggle_auto(icon=None, item=None):
         _icon.icon = _make_icon('idle')
 
 
-# ── Send to iPhone dialog ──────────────────────────────────────────────────────
+# ── Send dialog (shared for iPhone and Mac) ────────────────────────────────────
 
-def _show_push_dialog():
+def _show_push_dialog(label='Send to iPhone', accent=BLUE, dest='pc'):
     global _push_dialog
     if _push_dialog:
         try:
@@ -367,34 +357,32 @@ def _show_push_dialog():
     W, H = 300, 190
     w.geometry(f'{W}x{H}+{(sw - W) // 2}+{(sh - H) // 2}')
 
-    # Blue accent bar
-    tk.Frame(w, bg=BLUE, height=3).pack(fill='x')
+    tk.Frame(w, bg=accent, height=3).pack(fill='x')
 
     body = tk.Frame(w, bg=BG, padx=14, pady=10)
     body.pack(fill='both', expand=True)
 
-    # Header
     hdr = tk.Frame(body, bg=BG)
     hdr.pack(fill='x', pady=(0, 8))
-    tk.Label(hdr, text='Send to iPhone', font=('Segoe UI', 10, 'bold'),
-             fg=BLUE, bg=BG).pack(side='left')
+    tk.Label(hdr, text=label, font=('Segoe UI', 10, 'bold'),
+             fg=accent, bg=BG).pack(side='left')
     x = tk.Label(hdr, text='✕', font=('Segoe UI', 10),
                  fg=MUTED, bg=BG, cursor='hand2')
     x.pack(side='right')
     x.bind('<Button-1>', lambda e: _close_push_dialog())
 
-    # Text area
     txt = tk.Text(w, font=('Segoe UI', 10), bg=SURFACE, fg=WHITE,
                   relief='flat', wrap='word', insertbackground=WHITE,
                   height=5, bd=0, padx=8, pady=6,
                   highlightthickness=1, highlightbackground=SURFACE,
-                  highlightcolor=BLUE)
+                  highlightcolor=accent)
     txt.pack(fill='both', expand=True, padx=14, pady=(0, 8))
     txt.focus_set()
 
-    # Buttons
     btn_row = tk.Frame(body, bg=BG)
     btn_row.pack(fill='x')
+
+    notify_source = 'sent-mac' if dest == 'pc-to-mac' else 'sent'
 
     def _do_send():
         text = txt.get('1.0', 'end').strip()
@@ -402,8 +390,9 @@ def _show_push_dialog():
             return
         _close_push_dialog()
         def _run():
-            ok = _push_supabase(text)
-            _notify(text if ok else 'Push failed', source='sent' if ok else 'nothing')
+            ok = _push_supabase(text, source=dest)
+            _notify(text if ok else 'Push failed',
+                    source=notify_source if ok else 'nothing')
         threading.Thread(target=_run, daemon=True).start()
 
     def _do_paste():
@@ -418,7 +407,7 @@ def _show_push_dialog():
               cursor='hand2', padx=10, pady=4,
               command=_do_paste).pack(side='left')
     tk.Button(btn_row, text='Send', font=('Segoe UI', 9, 'bold'),
-              bg=BLUE, fg=WHITE, relief='flat', bd=0,
+              bg=accent, fg=WHITE, relief='flat', bd=0,
               cursor='hand2', padx=16, pady=4,
               command=_do_send).pack(side='right')
 
@@ -462,7 +451,12 @@ _icon = Icon(
         MenuItem('Start Recording', _on_click, default=True),
         MenuItem(lambda item: f'Auto: {"ON  " if _auto_mode else "OFF"}', _toggle_auto),
         MenuItem('Fetch Now', _fetch_now),
-        MenuItem('Send to iPhone', lambda icon, item: _root.after(0, _show_push_dialog)),
+        MenuItem('Send to iPhone',
+                 lambda icon, item: _root.after(0, lambda: _show_push_dialog(
+                     'Send to iPhone', BLUE, 'pc'))),
+        MenuItem('Send to Mac',
+                 lambda icon, item: _root.after(0, lambda: _show_push_dialog(
+                     'Send to Mac', ORANGE, 'pc-to-mac'))),
         Menu.SEPARATOR,
         MenuItem('Quit', _on_quit),
     ),
