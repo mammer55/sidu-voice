@@ -1,5 +1,13 @@
 # Clipboard Sync System — Project Reference
 
+## ⚠️ CRITICAL: Do not touch grandpa's app
+
+The `mammer55/sidu-voice` repo contains two completely unrelated things. The files in the **repo root** (`index.html`, `app.js`, `style.css`, `sw.js`, `manifest.json`, `compose.html`) are a live Arabic voice transcription PWA actively used by Mustafa's grandfather. It is hosted on GitHub Pages. **Never edit, move, or touch these files under any circumstances.** They have no connection to the clipboard sync system whatsoever — different backend, different purpose, different users.
+
+The clipboard sync tools (`windows-tray/` and `mac-clip/`) are in subdirectories of the same repo and are the only things that should ever be edited.
+
+---
+
 ## What this is
 
 A universal clipboard sync system across three devices: Windows PC, Mac, and iPhone. Text copied or transcribed on any device can be pushed to the others via Supabase as a temporary mailbox. Push notifications route to the right device based on a `source` field.
@@ -10,8 +18,12 @@ A universal clipboard sync system across three devices: Windows PC, Mac, and iPh
 
 | Repo | Local path | Purpose |
 |------|-----------|---------|
-| `mammer55/sidu-voice` | `/Users/mustafaalbaree/voice-transcriber/` | PC tray app, Mac menu bar app |
+| `mammer55/sidu-voice` | `/Users/mustafaalbaree/voice-transcriber/` | PC tray app + Mac menu bar app (subdirs only — root files are grandpa's app, off limits) |
 | `mammer55/QR-Bridge` | `/Users/mustafaalbaree/Code/qr-bridge/` | Web-based Clip UI (PC browser) |
+
+### How the two repos relate
+
+`qr-bridge/index.html`, `windows-tray/transcriber.pyw`, and `mac-clip/mac_clip.py` are **three parallel clients** for the same Supabase clipboard table. They are not dependent on each other — each one can push and pull independently. Use whichever is convenient for the task at hand. They are connected only by sharing the same Supabase project and `source` field convention.
 
 ---
 
