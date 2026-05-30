@@ -6,7 +6,7 @@ Install: pip3 install rumps requests py2app
 Run:     python3 mac_clip.py
 Bundle:  python3 setup.py py2app  →  dist/Clip Listener.app
 """
-import subprocess, threading, time
+import subprocess, threading, time, tempfile
 import rumps, requests
 
 SUPA_URL     = 'https://owcukwsouruowulhohyq.supabase.co'
@@ -17,6 +17,25 @@ SUPA_ANON    = ('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
                 'NDM3M30.3njPBQGD1LEQc-h_j4VhAhngNzEH2p2gpqtRplqan_E')
 SUPA_HEADERS = {'apikey': SUPA_ANON, 'Authorization': f'Bearer {SUPA_ANON}'}
 POLL_SEC     = 4
+
+
+def _make_icon_path():
+    """Render the SF Symbol clipboard icon to a temp PNG for rumps."""
+    try:
+        from AppKit import NSImage, NSBitmapImageRep
+        img  = NSImage.imageWithSystemSymbolName_accessibilityDescription_(
+            'doc.on.clipboard', 'Clip'
+        )
+        tiff = img.TIFFRepresentation()
+        rep  = NSBitmapImageRep.imageRepWithData_(tiff)
+        data = rep.representationUsingType_properties_(4, {})  # 4 = PNG
+        path = tempfile.mktemp(suffix='Template.png')
+        data.writeToFile_atomically_(path, True)
+        return path
+    except Exception:
+        return None
+
+_ICON_PATH = _make_icon_path()
 
 
 def _fetch():
@@ -59,14 +78,12 @@ def _copy(text):
 def _notify(message):
     preview = message[:100].replace('\\', '\\\\').replace('"', '\\"')
     subprocess.run(['osascript', '-e',
-        f'display notification "{preview}" with title "Clip from PC" '
-        f'subtitle "Copied to clipboard"'])
+        f'display notification "{preview}" with title "Clip from PC"'])
 
 
 class ClipListener(rumps.App):
     def __init__(self):
-        super().__init__('Clip Listener', title='', quit_button=None)
-        self._setup_icon()
+        super().__init__('Clip Listener', icon=_ICON_PATH, template=True, quit_button=None)
         self.menu = [
             rumps.MenuItem('Send to PC',  callback=self._send_to_pc),
             rumps.MenuItem('Fetch Now',   callback=self._fetch_now),
@@ -75,19 +92,6 @@ class ClipListener(rumps.App):
         ]
         self._last_id = None
         threading.Thread(target=self._poll, daemon=True).start()
-
-    def _setup_icon(self):
-        try:
-            from AppKit import NSImage
-            img = NSImage.imageWithSystemSymbolName_accessibilityDescription_(
-                'doc.on.clipboard', 'Clip'
-            )
-            img.setTemplate_(True)
-            btn = self._status_item.button()
-            btn.setImage_(img)
-            btn.setTitle_('')
-        except Exception:
-            self.title = '📋'
 
     def _poll(self):
         while True:
@@ -122,12 +126,7 @@ class ClipListener(rumps.App):
         response = win.run()
         if response.clicked and response.text.strip():
             text = response.text.strip()
-            def _run():
-                ok = _push(text)
-                msg = 'Sent to PC.' if ok else 'Push failed.'
-                subprocess.run(['osascript', '-e',
-                    f'display notification "{msg}" with title "Clip Listener"'])
-            threading.Thread(target=_run, daemon=True).start()
+            threading.Thread(target=_push, args=(text,), daemon=True).start()
 
 
 if __name__ == '__main__':

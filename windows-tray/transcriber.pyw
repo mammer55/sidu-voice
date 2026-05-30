@@ -92,6 +92,7 @@ def _notify(text, source='recorded'):
         tag, color = {
             'recorded':  ('Recorded on PC',       GREEN),
             'fetched':   ('Received from iPhone',  BLUE),
+            'fetched-mac': ('Received from Mac',   ORANGE),
             'sent':      ('Sent to iPhone',        BLUE),
             'sent-mac':  ('Sent to Mac',           ORANGE),
             'nothing':   ('Nothing new',           MUTED),
@@ -260,13 +261,13 @@ def _transcribe(audio):
 # ── Supabase ───────────────────────────────────────────────────────────────────
 
 def _fetch_supabase():
-    """Returns (id, content) or (None, None)."""
+    """Returns (id, content, source) or (None, None, None)."""
     try:
         now = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
         res = requests.get(
             f'{SUPA_URL}/rest/v1/clips',
             headers=SUPA_HEADERS,
-            params={'select': 'id,content',
+            params={'select': 'id,content,source',
                     'or': '(source.is.null,source.eq.mac-to-pc,source.eq.ios)',
                     'expires_at': f'gt.{now}',
                     'order': 'created_at.desc', 'limit': '1'},
@@ -275,10 +276,10 @@ def _fetch_supabase():
         if res.ok:
             data = res.json()
             if data:
-                return data[0]['id'], data[0]['content']
+                return data[0]['id'], data[0]['content'], data[0].get('source')
     except Exception:
         pass
-    return None, None
+    return None, None, None
 
 
 def _push_supabase(content, source='pc'):
@@ -302,11 +303,11 @@ def _push_supabase(content, source='pc'):
 def _fetch_now(icon=None, item=None):
     def _run():
         global _last_seen_id
-        row_id, content = _fetch_supabase()
+        row_id, content, src = _fetch_supabase()
         if content:
             _last_seen_id = row_id
             pyperclip.copy(content)
-            _notify(content, source='fetched')
+            _notify(content, source='fetched-mac' if src == 'mac-to-pc' else 'fetched')
         else:
             _notify('', source='nothing')
     threading.Thread(target=_run, daemon=True).start()
@@ -317,11 +318,11 @@ def _fetch_now(icon=None, item=None):
 def _poll_loop():
     global _last_seen_id
     while not _poll_stop.is_set():
-        row_id, content = _fetch_supabase()
+        row_id, content, src = _fetch_supabase()
         if content and row_id != _last_seen_id:
             _last_seen_id = row_id
             pyperclip.copy(content)
-            _notify(content, source='fetched')
+            _notify(content, source='fetched-mac' if src == 'mac-to-pc' else 'fetched')
         _poll_stop.wait(POLL_SEC)
 
 
