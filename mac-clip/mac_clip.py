@@ -39,9 +39,17 @@ def _copy(text):
     subprocess.run(['pbcopy'], input=text.encode())
 
 
+def _notify(message):
+    preview = message[:100].replace('\\', '\\\\').replace('"', '\\"')
+    subprocess.run(['osascript', '-e',
+        f'display notification "{preview}" with title "Clip from PC" '
+        f'subtitle "Copied to clipboard"'])
+
+
 class ClipListener(rumps.App):
     def __init__(self):
-        super().__init__('📋', quit_button=None)
+        super().__init__('Clip Listener', title='', quit_button=None)
+        self._setup_icon()
         self.menu = [
             rumps.MenuItem('Fetch Now', callback=self._fetch_now),
             None,
@@ -50,16 +58,26 @@ class ClipListener(rumps.App):
         self._last_id = None
         threading.Thread(target=self._poll, daemon=True).start()
 
+    def _setup_icon(self):
+        try:
+            from AppKit import NSImage
+            img = NSImage.imageWithSystemSymbolName_accessibilityDescription_(
+                'doc.on.clipboard', 'Clip'
+            )
+            img.setTemplate_(True)
+            btn = self._status_item.button()
+            btn.setImage_(img)
+            btn.setTitle_('')
+        except Exception:
+            self.title = '📋'
+
     def _poll(self):
         while True:
             row_id, content = _fetch()
             if content and row_id != self._last_id:
                 self._last_id = row_id
                 _copy(content)
-                rumps.notification(
-                    'Clip from PC', 'Copied to clipboard',
-                    content[:80] + ('…' if len(content) > 80 else ''),
-                )
+                _notify(content)
             time.sleep(POLL_SEC)
 
     def _fetch_now(self, _):
@@ -68,12 +86,10 @@ class ClipListener(rumps.App):
             if content:
                 self._last_id = row_id
                 _copy(content)
-                rumps.notification(
-                    'Clip from PC', 'Copied to clipboard',
-                    content[:80] + ('…' if len(content) > 80 else ''),
-                )
+                _notify(content)
             else:
-                rumps.notification('Clip Listener', '', 'Nothing waiting.')
+                subprocess.run(['osascript', '-e',
+                    'display notification "Nothing waiting." with title "Clip Listener"'])
         threading.Thread(target=_run, daemon=True).start()
 
 
