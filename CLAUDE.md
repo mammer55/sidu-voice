@@ -1,5 +1,17 @@
 # Clipboard Sync System — Project Reference
 
+## ⚠️ MOVED (Aug 2026): clipboard tools now live in ClipBridge
+
+The clipboard sync clients were rewritten and moved to their own repo:
+`mustafaalbaree-uky/ClipBridge`, local checkout `/Users/mustafaalbaree/Code/ClipBridge`.
+The `windows-tray/` and `mac-clip/` directories here are the old versions, kept only
+until the Windows PC is migrated. Make clipboard changes in ClipBridge, not here.
+Config (Supabase URL and anon key) now lives in `~/.clipbridge/config.json` on each
+machine instead of being hardcoded. The Supabase project, `source` conventions,
+database trigger, and iPhone Shortcuts are unchanged and are documented in both repos.
+
+This repo remains the home of grandpa's transcription PWA only.
+
 ## ⚠️ CRITICAL: Do not touch grandpa's app
 
 The `mammer55/sidu-voice` repo contains two completely unrelated things. The files in the **repo root** (`index.html`, `app.js`, `style.css`, `sw.js`, `manifest.json`, `compose.html`) are a live Arabic voice transcription PWA actively used by Mustafa's grandfather. It is hosted on GitHub Pages. **Never edit, move, or touch these files under any circumstances.** They have no connection to the clipboard sync system whatsoever — different backend, different purpose, different users.
