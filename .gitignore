@@ -1,1 +1,6 @@
 config.js
+.DS_Store
+__pycache__/
+*.pyc
+mac-clip/build/
+mac-clip/dist/
